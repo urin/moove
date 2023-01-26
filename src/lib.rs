@@ -90,14 +90,17 @@ fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
         if stat.is_file() || stat.is_symlink() || args.directory {
             put_source(&mut sources, path, args)?;
         } else {
+            let mut children = Vec::new();
             for entry in std::fs::read_dir(path).with_context(|| {
                 format!(
                     "Failed to list files of directory. {}",
                     path.to_string_lossy().yellow().underline()
                 )
             })? {
-                put_source(&mut sources, &entry?.path(), args)?;
+                put_source(&mut children, &entry?.path(), args)?;
             }
+            children.sort_unstable_by(|a, b| a.abs.cmp(&b.abs));
+            sources.append(&mut children);
             if sources.is_empty() {
                 anyhow::bail!(
                     "Directory is empty. {}\n\
