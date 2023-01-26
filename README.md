@@ -52,7 +52,13 @@ Options:
   - [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-linux-x86_64.tar.gz)
   - [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-windows-x86_64.tar.gz)
 
-- Configure environment variable `VISUAL` or `EDITOR`.
+- Extract a single binary file from the archive file.
+  For example,
+  ```sh
+  tar xaf moove-linux-x86_64.tar.gz
+  ```
+
+- Specify text editor configuring environment variable `VISUAL` or `EDITOR`.
   For example,
   ```sh
   export EDITOR=code
@@ -63,7 +69,7 @@ Options:
 Followings are used to build.
 
 - [cargo-make](https://crates.io/crates/cargo-make/) as the task runner
-- [cargo-zigbuild](https://crates.io/crates/cargo-zigbuild) to build for multiple platform
+- [cargo-zigbuild](https://crates.io/crates/cargo-zigbuild) to build for multiple platforms
 
 ### Setup building environment 🪜
 
