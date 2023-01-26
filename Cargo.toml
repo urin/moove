@@ -1,0 +1,21 @@
+[package]
+name = "moove"
+version = "0.0.0"
+license = "MIT/Apache-2.0"
+edition = "2021"
+rust-version = "1.66"
+readme = "README.md"
+homepage = "https://github.com/urin/moove"
+repository = "https://github.com/urin/moove"
+documentation = "https://github.com/urin/moove"
+keywords = ["mv", "rename", "move"]
+categories = ["command-line-utilities", "filesystem"]
+
+[dependencies]
+anyhow = "1.0.68"
+clap = { version = "4.0.32", features = ["derive"] }
+colored = "2.0.0"
+edit = "0.1.4"
+fs_extra = "1.2.0"
+normpath = "1.0.1"
+wild = "2.1.0"
