@@ -125,7 +125,7 @@ dual licensed as above, without any additional terms or conditions.
 
 <!-- Reference -->
 
-[image-license]: https://img.shields.io/github/license/urin/moove?style=flat
+[image-license]: https://img.shields.io/badge/license-MIT%2FApache--2.0-informational?style=flat
 [url-license-mit]: https://github.com/urin/moove/blob/main/LICENSE-MIT
 [url-license-apache]: https://github.com/urin/moove/blob/main/LICENSE-APACHE
 
