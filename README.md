@@ -1,9 +1,10 @@
 # moove - 🪄 Manipulate file names and locations
 
+[![Version][image-version]][url-releases]
+[![Downloads][image-downloads]][url-latest-release]
 [![License][image-license]](#license-)
 
 *moove* is a command line tool for renaming and moving files and directories using a text editor.
-
 
 [🎨 Features](#features-) \|
 [🚀 Usage](#usage-) \|
@@ -46,11 +47,11 @@ Options:
 ## Getting Started 📥
 
 - Download pre-compiled binaries.
-  - [moove-apple-aarch64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-apple-aarch64.tar.gz)
-  - [moove-linux-aarch64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-linux-aarch64.tar.gz)
-  - [moove-apple-x86_64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-apple-x86_64.tar.gz)
-  - [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-linux-x86_64.tar.gz)
-  - [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/raw/main/dist/moove-windows-x86_64.tar.gz)
+  - [moove-apple-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-aarch64.tar.gz)
+  - [moove-apple-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-x86_64.tar.gz)
+  - [moove-linux-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-aarch64.tar.gz)
+  - [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-x86_64.tar.gz)
+  - [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.tar.gz)
 
 - Extract a single binary file from the archive file.
   For example,
@@ -125,7 +126,11 @@ dual licensed as above, without any additional terms or conditions.
 
 <!-- Reference -->
 
-[image-license]: https://img.shields.io/badge/license-MIT%2FApache--2.0-informational?style=flat
+[image-license]: https://img.shields.io/badge/license-MIT%2FApache--2.0-lightgrey?style=flat
+[image-downloads]: https://img.shields.io/github/downloads/urin/moove/total?style=flat
+[image-version]: https://img.shields.io/github/v/release/urin/moove?style=flat
+
 [url-license-mit]: https://github.com/urin/moove/blob/main/LICENSE-MIT
 [url-license-apache]: https://github.com/urin/moove/blob/main/LICENSE-APACHE
-
+[url-latest-release]: https://github.com/urin/moove/releases/latest
+[url-releases]: https://github.com/urin/moove/releases
