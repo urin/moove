@@ -48,4 +48,9 @@ args = [
 [tasks.test]
 command = "cargo"
 args = ["test", "--lib"]
+dependencies = ["clippy"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy"]
 

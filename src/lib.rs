@@ -114,7 +114,7 @@ fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
     Ok(sources)
 }
 
-fn arg_paths(args: &Vec<String>) -> Result<Vec<String>> {
+fn arg_paths(args: &[String]) -> Result<Vec<String>> {
     use glob::glob;
     let mut paths = Vec::new();
     for arg in args.iter() {
@@ -128,7 +128,7 @@ fn arg_paths(args: &Vec<String>) -> Result<Vec<String>> {
         if globbed.is_empty() {
             anyhow::bail!("Failed to access {}", arg);
         }
-        globbed.sort_unstable_by(|a, b| a.canonicalize().unwrap().cmp(&b.canonicalize().unwrap()));
+        globbed.sort_unstable_by_key(|a| a.canonicalize().unwrap());
         paths.append(
             &mut globbed
                 .iter()
@@ -467,7 +467,7 @@ mod lib {
                 .collect();
             for dir in dirs.iter() {
                 println!("{} {}", "Creating".dimmed(), dir.to_string_lossy().dimmed());
-                std::fs::create_dir_all(&dir)?;
+                std::fs::create_dir_all(dir)?;
             }
             let files: Vec<PathBuf> = dirs
                 .iter()
