@@ -17,8 +17,9 @@
 
 - Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor,
   and renames or moves them exactly as you edit them.
-- Aborts entire operation in case of collisions.
 - Supports Linux, Mac, and Windows.
+- Supports wildcard patterns including Windows.
+- Aborts operation in case of collisions.
 
 ### Caveats ⚠
 

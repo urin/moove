@@ -8,14 +8,14 @@ use colored::*;
 
 #[doc(hidden)]
 fn main() -> Result<()> {
-    let args = CommandLine::parse_from(wild::args());
+    let args = CommandLine::parse();
     match try_main(&args) {
         Err(err) => {
             if !args.quiet {
                 eprintln!("{} {:?}", "Error:".bright_red().bold(), err);
             }
             std::process::exit(2);
-        },
+        }
         Ok(processed) => {
             if !args.quiet {
                 if processed == 0 {

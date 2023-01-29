@@ -75,7 +75,8 @@ pub fn try_main(args: &CommandLine) -> Result<usize> {
 
 fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
     let mut sources: Vec<Source> = Vec::new();
-    for p in args.paths.iter().map(|p| p.trim_end_matches(SEPARATORS)) {
+    let paths = arg_paths(&args.paths)?;
+    for p in paths.iter().map(|p| p.trim_end_matches(SEPARATORS)) {
         let path = &PathBuf::from(if cfg!(target_family = "windows") {
             p.replace('/', "\\")
         } else {
@@ -111,6 +112,31 @@ fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
         }
     }
     Ok(sources)
+}
+
+fn arg_paths(args: &Vec<String>) -> Result<Vec<String>> {
+    use glob::glob;
+    let mut paths = Vec::new();
+    for arg in args.iter() {
+        let mut globbed = Vec::new();
+        for path in
+            glob(arg).with_context(|| format!("Invalid pattern {}", arg.yellow().underline()))?
+        {
+            globbed
+                .push(path.with_context(|| format!("Failed to glob {}", arg.yellow().underline()))?)
+        }
+        if globbed.is_empty() {
+            anyhow::bail!("Failed to access {}", arg);
+        }
+        globbed.sort_unstable_by(|a, b| a.canonicalize().unwrap().cmp(&b.canonicalize().unwrap()));
+        paths.append(
+            &mut globbed
+                .iter()
+                .map(|g| g.to_string_lossy().to_string())
+                .collect(),
+        );
+    }
+    Ok(paths)
 }
 
 fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Result<()> {
