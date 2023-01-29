@@ -127,9 +127,18 @@ fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Res
         path
     };
     let new_src = Source {
-        text: path_as_text(new_path)?,
+        text: new_path
+            .to_str()
+            .with_context(|| {
+                format!(
+                    "Failed to convert path to UTF-8. {}",
+                    path.to_string_lossy().to_string().yellow().underline()
+                )
+            })?
+            .trim_end_matches(SEPARATORS)
+            .to_string(),
         path: new_path.to_path_buf(),
-        abs: new_path.to_path_buf(),
+        abs: normalized.as_path().to_path_buf(),
         meta: new_path.symlink_metadata().with_context(|| {
             format!(
                 "Failed to access {}",
@@ -169,18 +178,6 @@ fn normalize(path: &Path) -> Result<normpath::BasePathBuf> {
     })
 }
 
-fn path_as_text(path: &Path) -> Result<String> {
-    Ok(path
-        .to_str()
-        .with_context(|| {
-            format!(
-                "Failed to convert path to UTF-8. {}",
-                path.to_string_lossy().to_string().yellow().underline()
-            )
-        })?
-        .to_string())
-}
-
 fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Operation>> {
     let lines = edit::edit(
         sources
@@ -197,7 +194,8 @@ fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Ope
     )?
     .split('\n')
     .filter_map(|line| {
-        if line.trim().is_empty() {
+        let line = line.trim().trim_end_matches(SEPARATORS);
+        if line.is_empty() {
             None
         } else {
             Some(line.to_string())
@@ -213,20 +211,13 @@ fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Ope
     }
     let mut operations = Vec::new();
     for (src, line) in sources.iter().zip(lines.iter()) {
-        let line = line.trim_end_matches(SEPARATORS);
-        let src_trimmed = src.text.trim_end_matches(SEPARATORS);
-        if src_trimmed == line {
+        if &src.text == line {
             continue;
         }
         let dst_path = PathBuf::from(&line);
         let new_operation = Operation {
             kind: OperationKind::Move,
-            src: Source {
-                text: src_trimmed.to_string(),
-                path: src.path.to_owned(),
-                abs: src.abs.to_owned(),
-                meta: src.meta.to_owned(),
-            },
+            src: src.to_owned(),
             dst: Destination {
                 text: line.to_string(),
                 path: dst_path.to_owned(),
@@ -330,15 +321,10 @@ fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
     // Create parent directory if missing.
     //
     let current_dir = std::env::current_dir().context("Failed to get current directory.")?;
-    let dst_parent = if let Some(dir) = dst.path.parent() {
-        dir
-    } else if dst.path.is_relative() {
-        &current_dir
+    let dst_parent = if dst.text.contains(SEPARATORS) {
+        dst.path.parent().unwrap()
     } else {
-        anyhow::bail!(
-            "Destination should not be the root directory. {}",
-            dst.text.yellow().underline()
-        );
+        &current_dir
     };
     if !dst_parent.exists() {
         if !args.quiet && args.verbose {
@@ -364,7 +350,7 @@ fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
             println!(
                 "{} {} {}",
                 "Moving".dimmed(),
-                src.text.dimmed().underline(),
+                src.abs.to_string_lossy().dimmed().underline(),
                 dst_parent.to_string_lossy().dimmed().underline()
             );
         }
@@ -430,6 +416,7 @@ mod lib {
         /// Create following tree.
         ///
         /// ```ignore
+        /// {sandbox}/
         ///   1/
         ///   ├─1.txt
         ///   ├─11/
@@ -453,7 +440,6 @@ mod lib {
                 .map(|d| sandbox.join(d))
                 .collect();
             for dir in dirs.iter() {
-                let dir = sandbox.join(dir);
                 println!("{} {}", "Creating".dimmed(), dir.to_string_lossy().dimmed());
                 std::fs::create_dir_all(&dir)?;
             }
