@@ -1,4 +1,4 @@
-# moove - 🪄 Manipulate file names and locations
+# moove - 🚚 Manipulate file names and locations
 
 [![Version][image-version]][url-releases]
 [![Downloads][image-downloads]][url-latest-release]
@@ -44,6 +44,8 @@ Options:
   -h, --help       Print help
   -V, --version    Print version
 ```
+
+- Default options can be specified as environment variable `MOOVE_OPTIONS`.
 
 ## Getting Started 📥
 
@@ -92,19 +94,18 @@ cargo make
 
 ## TODOs ✅
 
-- Overwrite option
-- Order option
-- Package for various platforms
+- Exclude hidden files as default
+- Exclude pattern option
+- Exclude .gitignore option
 - Recursive option
 - Maximum depth option
 - Depth option
+- Package for various platforms
 - Enable applying pipe
+- Overwrite option
 - Remove operation
 - Create option
-- Exclude pattern option
-- Exclude .gitignore option
-- Exclude hidden files as default
-- Configuration management
+- Order option
 - Rollback option
 - Log and undo
 

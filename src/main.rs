@@ -2,13 +2,17 @@
 
 use moove::*;
 
-use anyhow::Result;
 use clap::Parser;
 use colored::*;
 
 #[doc(hidden)]
-fn main() -> Result<()> {
-    let args = CommandLine::parse();
+fn main() {
+    let mut args = CommandLine::parse();
+    if let Ok(options) = std::env::var("MOOVE_OPTIONS") {
+        args.update_from(
+            std::env::args().chain(options.split_ascii_whitespace().map(|o| o.to_string())),
+        )
+    };
     match try_main(&args) {
         Err(err) => {
             if !args.quiet {
@@ -30,5 +34,4 @@ fn main() -> Result<()> {
             }
         }
     }
-    Ok(())
 }
