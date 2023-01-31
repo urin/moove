@@ -94,7 +94,6 @@ cargo make
 
 ## TODOs ✅
 
-- Exclude hidden files as default
 - Exclude pattern option
 - Exclude .gitignore option
 - Recursive option

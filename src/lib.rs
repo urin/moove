@@ -28,6 +28,9 @@ pub struct CommandLine {
     /// Directories themselves, not their contents
     #[arg(short, long)]
     pub directory: bool,
+    /// Include hidden files
+    #[arg(short, long)]
+    pub with_hidden: bool,
 }
 
 #[derive(Debug)]
@@ -147,6 +150,9 @@ fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Res
             path.to_string_lossy().yellow().underline()
         );
     }
+    if !args.with_hidden && is_hidden(normalized.as_path())? {
+        return Ok(());
+    }
     let new_path = if args.absolute {
         normalized.as_path()
     } else {
@@ -202,6 +208,32 @@ fn normalize(path: &Path) -> Result<normpath::BasePathBuf> {
             path.to_string_lossy().yellow().underline()
         )
     })
+}
+
+#[cfg(target_family = "windows")]
+pub fn is_hidden(file_path: &Path) -> Result<bool> {
+    use std::os::windows::prelude::*;
+    let metadata = std::fs::metadata(file_path).with_context(|| {
+        format!(
+            "Failed to read metadata of {}",
+            file_path.to_string_lossy().yellow().underline()
+        )
+    })?;
+    Ok((metadata.file_attributes() & 0x2) > 0)
+}
+
+#[cfg(target_family = "unix")]
+pub fn is_hidden(file_path: &Path) -> Result<bool> {
+    Ok(file_path
+        .file_name()
+        .with_context(|| {
+            format!(
+                "Failed to get file name {}",
+                file_path.to_string_lossy().yellow().underline()
+            )
+        })?
+        .to_string_lossy()
+        .starts_with('.'))
 }
 
 fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Operation>> {
