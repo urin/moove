@@ -403,7 +403,7 @@ fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
     // Move source if its parent need to be changed.
     //
     // NOTE Can be unwrapped safely, `src` always has the parent.
-    if src.abs.parent().unwrap() != dst_parent {
+    if src.path.parent().unwrap() != dst_parent {
         if !args.quiet && args.verbose {
             println!(
                 "{} {} {}",
