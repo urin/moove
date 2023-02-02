@@ -30,19 +30,20 @@
 ## Usage 🚀
 
 ```txt
-Usage: moove [OPTIONS] [PATHS]...
+Usage: moove.exe [OPTIONS] [PATHS]...
 
 Arguments:
   [PATHS]...  Paths to move [default: .]
 
 Options:
-  -u, --dry-run    Dry-run option
-  -v, --verbose    Verbose output
-  -q, --quiet      No output to stdout/strerr even if error
-  -a, --absolute   Handle as absolute paths
-  -d, --directory  Directories themselves, not their contents
-  -h, --help       Print help
-  -V, --version    Print version
+  -u, --dry-run                    Dry-run option
+  -v, --verbose                    Verbose output
+  -q, --quiet                      No output to stdout/strerr even if error
+  -a, --absolute                   Handle as absolute paths
+  -d, --directory                  Directories themselves, not their contents
+  -w, --with-hidden                Include hidden files
+  -h, --help                       Print help
+  -V, --version                    Print version
 ```
 
 - Default options can be specified as environment variable `MOOVE_OPTIONS`.
