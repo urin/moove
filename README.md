@@ -42,6 +42,7 @@ Options:
   -a, --absolute                   Handle as absolute paths
   -d, --directory                  Directories themselves, not their contents
   -w, --with-hidden                Include hidden files
+  -e, --exclude-pattern <PATTERN>  Exclude regular expression pattern
   -h, --help                       Print help
   -V, --version                    Print version
 ```

@@ -6,6 +6,7 @@ use clap::Parser;
 use colored::*;
 use fs_extra::dir::CopyOptions;
 use normpath::PathExt;
+use regex::Regex;
 
 #[derive(Debug, Parser, Default)]
 #[command(version)]
@@ -31,6 +32,9 @@ pub struct CommandLine {
     /// Include hidden files
     #[arg(short, long)]
     pub with_hidden: bool,
+    /// Exclude regular expression pattern
+    #[arg(short, long, value_name = "PATTERN")]
+    pub exclude_pattern: Option<Regex>,
 }
 
 #[derive(Debug)]
@@ -144,33 +148,36 @@ fn arg_paths(args: &[String]) -> Result<Vec<String>> {
 
 fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Result<()> {
     let normalized = normalize(path)?;
-    if normalized.parent().is_err() {
+    let normalized = normalized.as_path();
+    if normalized.parent().is_none() {
         anyhow::bail!(
             "Source should not be the root directory. {}",
             path.to_string_lossy().yellow().underline()
         );
     }
-    if !args.with_hidden && is_hidden(normalized.as_path())? {
+    if !args.with_hidden && is_hidden(normalized)? {
         return Ok(());
     }
-    let new_path = if args.absolute {
-        normalized.as_path()
-    } else {
-        path
-    };
+    let new_path = if args.absolute { normalized } else { path };
+    let new_path_text = new_path
+        .to_str()
+        .with_context(|| {
+            format!(
+                "Failed to convert path to UTF-8. {}",
+                path.to_string_lossy().to_string().yellow().underline()
+            )
+        })?
+        .trim_end_matches(SEPARATORS)
+        .to_string();
+    if let Some(pattern) = &args.exclude_pattern {
+        if pattern.is_match(&new_path_text) {
+            return Ok(());
+        }
+    }
     let new_src = Source {
-        text: new_path
-            .to_str()
-            .with_context(|| {
-                format!(
-                    "Failed to convert path to UTF-8. {}",
-                    path.to_string_lossy().to_string().yellow().underline()
-                )
-            })?
-            .trim_end_matches(SEPARATORS)
-            .to_string(),
+        text: new_path_text,
         path: new_path.to_path_buf(),
-        abs: normalized.as_path().to_path_buf(),
+        abs: normalized.to_path_buf(),
         meta: new_path.symlink_metadata().with_context(|| {
             format!(
                 "Failed to access {}",
