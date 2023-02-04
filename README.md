@@ -20,6 +20,7 @@
 - Supports Linux, Mac, and Windows.
 - Supports wildcard patterns including Windows.
 - Aborts operation in case of collisions.
+- Default options can be specified as environment variable `MOOVE_OPTIONS`.
 
 ### Caveats ⚠
 
@@ -30,7 +31,7 @@
 ## Usage 🚀
 
 ```txt
-Usage: moove.exe [OPTIONS] [PATHS]...
+Usage: moove [OPTIONS] [PATHS]...
 
 Arguments:
   [PATHS]...  Paths to move [default: .]
@@ -43,11 +44,10 @@ Options:
   -d, --directory                  Directories themselves, not their contents
   -w, --with-hidden                Include hidden files
   -e, --exclude-pattern <PATTERN>  Exclude regular expression pattern
+  -c, --copy                       Exclude regular expression pattern
   -h, --help                       Print help
   -V, --version                    Print version
 ```
-
-- Default options can be specified as environment variable `MOOVE_OPTIONS`.
 
 ## Getting Started 📥
 
@@ -96,8 +96,7 @@ cargo make
 
 ## TODOs ✅
 
-- Exclude pattern option
-- Exclude .gitignore option
+- Order option
 - Recursive option
 - Maximum depth option
 - Depth option
@@ -106,7 +105,7 @@ cargo make
 - Overwrite option
 - Remove operation
 - Create option
-- Order option
+- Exclude .gitignore option
 - Rollback option
 - Log and undo
 
