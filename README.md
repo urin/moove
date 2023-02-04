@@ -44,7 +44,7 @@ Options:
   -d, --directory                  Directories themselves, not their contents
   -w, --with-hidden                Include hidden files
   -e, --exclude-pattern <PATTERN>  Exclude regular expression pattern
-  -c, --copy                       Exclude regular expression pattern
+  -c, --copy                       Copy without moving
   -h, --help                       Print help
   -V, --version                    Print version
 ```

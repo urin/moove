@@ -35,7 +35,7 @@ pub struct CommandLine {
     /// Exclude regular expression pattern
     #[arg(short, long, value_name = "PATTERN")]
     pub exclude_pattern: Option<Regex>,
-    /// Exclude regular expression pattern
+    /// Copy without moving
     #[arg(short, long)]
     pub copy: bool,
 }
