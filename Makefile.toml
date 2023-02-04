@@ -54,3 +54,14 @@ dependencies = ["clippy"]
 command = "cargo"
 args = ["clippy"]
 
+[tasks.update]
+dependencies = ["cargo-update", "cargo-upgrade"]
+
+[tasks.cargo-update]
+command = "cargo"
+args = ["update"]
+
+[tasks.cargo-upgrade]
+command = "cargo"
+args = ["upgrade"]
+
