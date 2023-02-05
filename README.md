@@ -51,6 +51,8 @@ Options:
 
 ## Getting Started 📥
 
+### Pre-compiled binaries
+
 - Download pre-compiled binaries.
   - [moove-apple-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-aarch64.tar.gz)
   - [moove-apple-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-x86_64.tar.gz)
@@ -58,17 +60,22 @@ Options:
   - [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-x86_64.tar.gz)
   - [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.tar.gz)
 
-- Extract a single binary file from the archive file.
-  For example,
+- Extract a single binary file from the archive file. For example,
   ```sh
   tar xaf moove-linux-x86_64.tar.gz
   ```
 
-- Specify text editor configuring environment variable `VISUAL` or `EDITOR`.
+- (Recommended) Specify text editor configuring environment variable `VISUAL` or `EDITOR`.
   For example,
   ```sh
   export EDITOR=code
   ```
+
+### Install by cargo
+
+```sh
+cargo install moove
+```
 
 ## Contributing 💙
 
@@ -96,6 +103,7 @@ cargo make
 
 ## TODOs ✅
 
+- Prompt re-edit when conflict
 - Order option
 - Recursive option
 - Maximum depth option
