@@ -1,6 +1,6 @@
 # moove - 🚚 Manipulate file names and locations
 
-[![Version][image-version]][url-releases]
+[![Version][image-version]][url-version]
 [![Downloads][image-downloads]][url-latest-release]
 [![License][image-license]](#license-)
 
@@ -138,9 +138,10 @@ dual licensed as above, without any additional terms or conditions.
 
 [image-license]: https://img.shields.io/badge/license-MIT%2FApache--2.0-lightgrey?style=flat
 [image-downloads]: https://img.shields.io/github/downloads/urin/moove/total?style=flat
-[image-version]: https://img.shields.io/github/v/release/urin/moove?style=flat
+[image-version]: https://img.shields.io/crates/v/moove.svg?style=flat
 
 [url-license-mit]: https://github.com/urin/moove/blob/main/LICENSE-MIT
 [url-license-apache]: https://github.com/urin/moove/blob/main/LICENSE-APACHE
 [url-latest-release]: https://github.com/urin/moove/releases/latest
 [url-releases]: https://github.com/urin/moove/releases
+[url-version]: https://crates.io/crates/moove

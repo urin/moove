@@ -47,7 +47,7 @@ args = [
 
 [tasks.test]
 command = "cargo"
-args = ["test", "--lib"]
+args = ["test"]
 dependencies = ["clippy"]
 
 [tasks.clippy]

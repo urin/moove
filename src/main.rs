@@ -10,7 +10,9 @@ fn main() {
     let mut args = CommandLine::parse();
     if let Ok(env) = std::env::var("MOOVE_OPTIONS") {
         let env_args = CommandLine::parse_from(
-            std::env::args().take(1).chain(env.split_ascii_whitespace().map(|o| o.to_string()))
+            std::env::args()
+                .take(1)
+                .chain(env.split_ascii_whitespace().map(|o| o.to_string())),
         );
         args.dry_run = args.dry_run || env_args.dry_run;
         args.verbose = args.verbose || env_args.verbose;

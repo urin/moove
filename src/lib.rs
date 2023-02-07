@@ -41,30 +41,29 @@ pub struct CommandLine {
 }
 
 #[derive(Debug)]
-struct Operation {
-    kind: OperationKind,
-    src: Source,
-    dst: Destination,
+pub struct Operation {
+    pub kind: OperationKind,
+    pub src: Source,
+    pub dst: Destination,
 }
 
 #[derive(Debug)]
-enum OperationKind {
+pub enum OperationKind {
     Move,
 }
 
 #[derive(Debug, Clone)]
-struct Source {
-    text: String,
-    path: PathBuf,
-    abs: PathBuf,
-    meta: Metadata,
+pub struct Source {
+    pub text: String,
+    pub path: PathBuf,
+    pub abs: PathBuf,
+    pub meta: Metadata,
 }
 
 #[derive(Debug, Clone)]
-struct Destination {
-    text: String,
-    path: PathBuf,
-    normalized: PathBuf,
+pub struct Destination {
+    pub text: String,
+    pub path: PathBuf,
 }
 
 static SEPARATORS: &[char] = &['/', '\\'];
@@ -83,7 +82,7 @@ pub fn try_main(args: &CommandLine) -> Result<usize> {
     Ok(processed)
 }
 
-fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
+pub fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
     let mut sources: Vec<Source> = Vec::new();
     let paths = arg_paths(&args.paths)?;
     for p in paths.iter().map(|p| p.trim_end_matches(SEPARATORS)) {
@@ -124,7 +123,7 @@ fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
     Ok(sources)
 }
 
-fn arg_paths(args: &[String]) -> Result<Vec<String>> {
+pub fn arg_paths(args: &[String]) -> Result<Vec<String>> {
     use glob::glob;
     let mut paths = Vec::new();
     for arg in args.iter() {
@@ -149,19 +148,19 @@ fn arg_paths(args: &[String]) -> Result<Vec<String>> {
     Ok(paths)
 }
 
-fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Result<()> {
-    let normalized = normalize(path)?;
-    let normalized = normalized.as_path();
-    if normalized.parent().is_none() {
+pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Result<()> {
+    let abs = absolute(path)?;
+    let abs = abs.as_path();
+    if abs.parent().is_none() {
         anyhow::bail!(
             "Source should not be the root directory. {}",
             path.to_string_lossy().yellow().underline()
         );
     }
-    if !args.with_hidden && is_hidden(normalized)? {
+    if !args.with_hidden && is_hidden(abs)? {
         return Ok(());
     }
-    let new_path = if args.absolute { normalized } else { path };
+    let new_path = if args.absolute { abs } else { path };
     let new_path_text = new_path
         .to_str()
         .with_context(|| {
@@ -180,7 +179,7 @@ fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Res
     let new_src = Source {
         text: new_path_text,
         path: new_path.to_path_buf(),
-        abs: normalized.to_path_buf(),
+        abs: abs.to_path_buf(),
         meta: new_path.symlink_metadata().with_context(|| {
             format!(
                 "Failed to access {}",
@@ -200,8 +199,9 @@ fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Res
     Ok(())
 }
 
+/// TODO Can be replaced with `std::path::absolute` in the future.
 #[cfg(target_family = "windows")]
-fn normalize(path: &Path) -> Result<normpath::BasePathBuf> {
+pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
     path.normalize_virtually().with_context(|| {
         format!(
             "Failed to normalize path. {}",
@@ -210,8 +210,9 @@ fn normalize(path: &Path) -> Result<normpath::BasePathBuf> {
     })
 }
 
+/// TODO Can be replaced with `std::path::absolute` in the future.
 #[cfg(target_family = "unix")]
-fn normalize(path: &Path) -> Result<normpath::BasePathBuf> {
+pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
     path.normalize().with_context(|| {
         format!(
             "Failed to normalize path. {}",
@@ -246,7 +247,7 @@ pub fn is_hidden(file_path: &Path) -> Result<bool> {
         .starts_with('.'))
 }
 
-fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Operation>> {
+pub fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Operation>> {
     let lines = edit::edit(
         sources
             .iter()
@@ -269,7 +270,11 @@ fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Ope
         if line.is_empty() {
             None
         } else {
-            Some(line.to_string())
+            Some(if cfg!(target_family = "windows") {
+                line.replace('/', "\\")
+            } else {
+                line.to_string()
+            })
         }
     })
     .collect::<Vec<_>>();
@@ -282,17 +287,16 @@ fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Ope
     }
     let mut operations = Vec::new();
     for (src, line) in sources.iter().zip(lines.iter()) {
-        if &src.text == line {
+        let dst_path = normalize(&PathBuf::from(&line));
+        if dst_path == src.path || dst_path == src.abs {
             continue;
         }
-        let dst_path = PathBuf::from(&line);
         let new_operation = Operation {
             kind: OperationKind::Move,
             src: src.to_owned(),
             dst: Destination {
                 text: line.to_string(),
                 path: dst_path.to_owned(),
-                normalized: normalize_lexically(&dst_path),
             },
         };
         is_operational(&operations, &new_operation)?;
@@ -301,7 +305,7 @@ fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Ope
     Ok(operations)
 }
 
-fn normalize_lexically(path: &Path) -> PathBuf {
+pub fn normalize(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {
@@ -318,7 +322,7 @@ fn normalize_lexically(path: &Path) -> PathBuf {
     normalized
 }
 
-fn is_operational(operations: &[Operation], new_operation: &Operation) -> Result<()> {
+pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Result<()> {
     let src = &new_operation.src;
     let dst = &new_operation.dst;
     if dst.text.ends_with(std::path::MAIN_SEPARATOR)
@@ -330,10 +334,7 @@ fn is_operational(operations: &[Operation], new_operation: &Operation) -> Result
             src.text.underline()
         )
     }
-    if operations
-        .iter()
-        .any(|o| o.dst.normalized == dst.normalized)
-    {
+    if operations.iter().any(|o| o.dst.path == dst.path) {
         anyhow::bail!("Duplicated destination. {}", dst.text.yellow().underline());
     }
     if operations
@@ -360,7 +361,7 @@ fn is_operational(operations: &[Operation], new_operation: &Operation) -> Result
     Ok(())
 }
 
-fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
+pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
     match o.kind {
         OperationKind::Move => {
             if !args.quiet && (args.verbose || args.dry_run) {
@@ -388,7 +389,7 @@ fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
     Ok(())
 }
 
-fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
+pub fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
     let Operation { src, dst, .. } = operation;
     //
     // Create parent directory if missing.
@@ -417,36 +418,35 @@ fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
     //
     // Move source if its parent need to be changed.
     //
-    // NOTE Can be unwrapped safely, `src` always has the parent.
-    if src.path.parent().unwrap() != dst_parent {
-        if !args.quiet && args.verbose {
-            println!(
-                "{} {} {}",
-                "Moving".dimmed(),
-                src.abs.to_string_lossy().dimmed().underline(),
-                dst_parent.to_string_lossy().dimmed().underline()
-            );
-        }
-        if args.copy {
-            fs_extra::copy_items(&[&src.path], dst_parent, &CopyOptions::default()).with_context(
-                || {
-                    format!(
-                        "Failed to copy {} to {}",
-                        src.text.yellow().underline(),
-                        dst_parent.to_string_lossy().yellow().underline()
-                    )
-                },
-            )?;
-        } else {
-            fs_extra::move_items(&[&src.path], dst_parent, &CopyOptions::default()).with_context(
-                || {
-                    format!(
-                        "Failed to move {} to {}",
-                        src.text.yellow().underline(),
-                        dst_parent.to_string_lossy().yellow().underline()
-                    )
-                },
-            )?;
+    if let Some(src_parent) = src.path.parent() {
+        if !src_parent.as_os_str().is_empty() && src_parent != dst_parent {
+            if !args.quiet && args.verbose {
+                println!(
+                    "{} {} {}",
+                    "Moving".dimmed(),
+                    src.abs.to_string_lossy().dimmed().underline(),
+                    dst_parent.to_string_lossy().dimmed().underline()
+                );
+            }
+            if args.copy {
+                fs_extra::copy_items(&[&src.path], dst_parent, &CopyOptions::default())
+                    .with_context(|| {
+                        format!(
+                            "Failed to copy {} to {}",
+                            src.text.yellow().underline(),
+                            dst_parent.to_string_lossy().yellow().underline()
+                        )
+                    })?;
+            } else {
+                fs_extra::move_items(&[&src.path], dst_parent, &CopyOptions::default())
+                    .with_context(|| {
+                        format!(
+                            "Failed to move {} to {}",
+                            src.text.yellow().underline(),
+                            dst_parent.to_string_lossy().yellow().underline()
+                        )
+                    })?;
+            }
         }
     }
     //
@@ -503,7 +503,7 @@ fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
 mod lib {
     use std::path::PathBuf;
 
-    use anyhow::Result;
+    use anyhow::{Context, Result};
     use colored::*;
     use normpath::PathExt;
 
@@ -541,7 +541,13 @@ mod lib {
             std::fs::create_dir_all(sandbox)?;
             let dirs: Vec<PathBuf> = vec!["1", "1/11", "1/12", "2", "2/21", "2/21/211", "2/22"]
                 .iter()
-                .map(|d| sandbox.join(d))
+                .map(|d| {
+                    sandbox.join(PathBuf::from(if cfg!(target_family = "windows") {
+                        d.replace('/', "\\")
+                    } else {
+                        d.to_string()
+                    }))
+                })
                 .collect();
             for dir in dirs.iter() {
                 println!("{} {}", "Creating".dimmed(), dir.to_string_lossy().dimmed());
@@ -570,7 +576,11 @@ mod lib {
         }
 
         fn source_from(&self, s: &str) -> Source {
-            let path = self.sandbox.join(s);
+            let path = self.sandbox.join(if cfg!(target_family = "windows") {
+                s.replace('/', "\\")
+            } else {
+                s.to_string()
+            });
             Source {
                 text: path.to_string_lossy().to_string(),
                 path: path.to_owned(),
@@ -587,11 +597,14 @@ mod lib {
         }
 
         fn destination_from(&self, s: &str) -> Destination {
-            let path = self.sandbox.join(s);
+            let path = self.sandbox.join(if cfg!(target_family = "windows") {
+                s.replace('/', "\\")
+            } else {
+                s.to_string()
+            });
             Destination {
                 text: path.to_string_lossy().to_string(),
                 path: path.to_owned(),
-                normalized: normalize_lexically(&path),
             }
         }
 
