@@ -1,4 +1,5 @@
 use std::fs::Metadata;
+use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -38,6 +39,9 @@ pub struct CommandLine {
     /// Copy without moving
     #[arg(short, long)]
     pub copy: bool,
+    /// Abort in case of collision
+    #[arg(short = 'n', long)]
+    pub end_mistake: bool,
 }
 
 #[derive(Debug)]
@@ -247,62 +251,104 @@ pub fn is_hidden(file_path: &Path) -> Result<bool> {
         .starts_with('.'))
 }
 
-pub fn operations_from(sources: &Vec<Source>, _args: &CommandLine) -> Result<Vec<Operation>> {
-    let lines = edit::edit(
-        sources
-            .iter()
-            .map(|src| {
-                let mut line = src.text.to_owned();
-                if src.path.is_dir()
-                    && !src.path.is_symlink()
-                    && !line.ends_with(std::path::MAIN_SEPARATOR)
-                {
-                    line.push(std::path::MAIN_SEPARATOR);
-                }
-                line
-            })
-            .collect::<Vec<_>>()
-            .join("\n"),
-    )?
-    .split('\n')
-    .filter_map(|line| {
-        let line = line.trim().trim_end_matches(SEPARATORS);
-        if line.is_empty() {
-            None
-        } else {
-            Some(if cfg!(target_family = "windows") {
-                line.replace('/', "\\")
-            } else {
-                line.to_string()
-            })
-        }
-    })
-    .collect::<Vec<_>>();
-    if lines.len() != sources.len() {
-        anyhow::bail!(
-            "Number of lines {} does not match the original one {}",
-            lines.len().to_string().yellow(),
-            sources.len().to_string().yellow()
-        );
-    }
+pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<Operation>> {
     let mut operations = Vec::new();
-    for (src, line) in sources.iter().zip(lines.iter()) {
-        let dst_path = normalize(&PathBuf::from(&line));
-        if dst_path == src.path || dst_path == src.abs {
-            continue;
+    let mut text = sources
+        .iter()
+        .map(|src| {
+            let mut line = src.text.to_owned();
+            if src.path.is_dir()
+                && !src.path.is_symlink()
+                && !line.ends_with(std::path::MAIN_SEPARATOR)
+            {
+                line.push(std::path::MAIN_SEPARATOR);
+            }
+            line
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    'redo: loop {
+        text = edit::edit(&text)?;
+        let lines = text
+            .split('\n')
+            .filter_map(|line| {
+                let line = line.trim();
+                if line.is_empty() {
+                    return None;
+                }
+                let line = line.trim_end_matches(SEPARATORS);
+                Some(if cfg!(target_family = "windows") {
+                    line.replace('/', "\\")
+                } else {
+                    line.to_string()
+                })
+            })
+            .collect::<Vec<_>>();
+        if lines.len() != sources.len() {
+            let message = format!(
+                "Number of lines {} does not match the original one {}",
+                lines.len().to_string().yellow(),
+                sources.len().to_string().yellow()
+            );
+            if !args.end_mistake {
+                println!("{}", message.to_string().yellow());
+                if prompt_redo()? {
+                    continue 'redo;
+                }
+                break 'redo;
+            }
+            anyhow::bail!(message);
         }
-        let new_operation = Operation {
-            kind: OperationKind::Move,
-            src: src.to_owned(),
-            dst: Destination {
-                text: line.to_string(),
-                path: dst_path.to_owned(),
-            },
-        };
-        is_operational(&operations, &new_operation)?;
-        operations.push(new_operation);
+        for (src, line) in sources.iter().zip(lines.iter()) {
+            let dst_path = normalize(&PathBuf::from(&line));
+            if dst_path == src.path || dst_path == src.abs {
+                continue;
+            }
+            let new_operation = Operation {
+                kind: OperationKind::Move,
+                src: src.to_owned(),
+                dst: Destination {
+                    text: line.to_string(),
+                    path: dst_path.to_owned(),
+                },
+            };
+            if let Err(message) = is_operational(&operations, &new_operation) {
+                if !args.end_mistake {
+                    println!("{}", message.to_string().yellow());
+                    if prompt_redo()? {
+                        continue 'redo;
+                    }
+                    break 'redo;
+                }
+                anyhow::bail!(message);
+            }
+            operations.push(new_operation);
+        }
+        break;
     }
     Ok(operations)
+}
+
+pub fn prompt_redo() -> Result<bool> {
+    loop {
+        print!(
+            "{}{} or {}{}? > ",
+            "E".bold().underline(),
+            "dit".bold(),
+            "A".bold().underline(),
+            "bort".bold()
+        );
+        std::io::stdout().flush()?;
+        let mut ans = String::new();
+        std::io::stdin().read_line(&mut ans)?;
+        let ans = ans.trim().to_ascii_lowercase();
+        if Regex::new(r"^a(bort)?$")?.is_match(&ans) {
+            return Ok(false);
+        }
+        if ans.is_empty() || Regex::new(r"^e(dit)?$")?.is_match(&ans) {
+            return Ok(true);
+        }
+    }
 }
 
 pub fn normalize(path: &Path) -> PathBuf {
@@ -452,7 +498,7 @@ pub fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
     //
     // Rename if its file name need to be changed.
     //
-    // NOTE Can be unwrapped safely, `src` and `dst` always have basename.
+    // NOTE Can be unwrapped safely, `src` and `dst` cannot be root nor `..`.
     let src_basename = src.path.file_name().unwrap();
     let dst_basename = dst.path.file_name().unwrap();
     if src_basename != dst_basename {

@@ -19,7 +19,6 @@
   and renames or moves them exactly as you edit them.
 - Supports Linux, Mac, and Windows.
 - Supports wildcard patterns including Windows.
-- Aborts operation in case of collisions.
 - Default options can be specified as environment variable `MOOVE_OPTIONS`.
 
 ### Caveats ⚠
@@ -103,7 +102,6 @@ cargo make
 
 ## TODOs ✅
 
-- Prompt re-edit when conflict
 - Order option
 - Recursive option
 - Maximum depth option
