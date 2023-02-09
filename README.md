@@ -44,6 +44,7 @@ Options:
   -w, --with-hidden                Include hidden files
   -e, --exclude-pattern <PATTERN>  Exclude regular expression pattern
   -c, --copy                       Copy without moving
+  -o, --oops                       Abort in case of collision
   -h, --help                       Print help
   -V, --version                    Print version
 ```
@@ -102,7 +103,8 @@ cargo make
 
 ## TODOs ✅
 
-- Order option
+- Ignore case in case of Windows
+- Natural sort option
 - Recursive option
 - Maximum depth option
 - Depth option

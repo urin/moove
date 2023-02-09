@@ -40,8 +40,8 @@ pub struct CommandLine {
     #[arg(short, long)]
     pub copy: bool,
     /// Abort in case of collision
-    #[arg(short = 'n', long)]
-    pub end_mistake: bool,
+    #[arg(short, long)]
+    pub oops: bool,
 }
 
 #[derive(Debug)]
@@ -88,7 +88,7 @@ pub fn try_main(args: &CommandLine) -> Result<usize> {
 
 pub fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
     let mut sources: Vec<Source> = Vec::new();
-    let paths = arg_paths(&args.paths)?;
+    let paths = list_files(&args.paths)?;
     for p in paths.iter().map(|p| p.trim_end_matches(SEPARATORS)) {
         let path = &PathBuf::from(if cfg!(target_family = "windows") {
             p.replace('/', "\\")
@@ -124,10 +124,13 @@ pub fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
             }
         }
     }
+    if args.sort {
+        sources.sort_unstable_by(|a, b| natord::compare(&a.text, &b.text));
+    }
     Ok(sources)
 }
 
-pub fn arg_paths(args: &[String]) -> Result<Vec<String>> {
+pub fn list_files(args: &[String]) -> Result<Vec<String>> {
     use glob::glob;
     let mut paths = Vec::new();
     for arg in args.iter() {
@@ -201,6 +204,23 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
     }
     sources.push(new_src);
     Ok(())
+}
+
+pub fn normalize(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    normalized.push(component);
+                }
+            }
+            _ => {
+                normalized.push(component);
+            }
+        }
+    }
+    normalized
 }
 
 /// TODO Can be replaced with `std::path::absolute` in the future.
@@ -290,7 +310,7 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
                 lines.len().to_string().yellow(),
                 sources.len().to_string().yellow()
             );
-            if !args.end_mistake {
+            if !args.oops {
                 println!("{}", message.to_string().yellow());
                 if prompt_redo()? {
                     continue 'redo;
@@ -313,7 +333,7 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
                 },
             };
             if let Err(message) = is_operational(&operations, &new_operation) {
-                if !args.end_mistake {
+                if !args.oops {
                     println!("{}", message.to_string().yellow());
                     if prompt_redo()? {
                         continue 'redo;
@@ -349,23 +369,6 @@ pub fn prompt_redo() -> Result<bool> {
             return Ok(true);
         }
     }
-}
-
-pub fn normalize(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                if !normalized.pop() {
-                    normalized.push(component);
-                }
-            }
-            _ => {
-                normalized.push(component);
-            }
-        }
-    }
-    normalized
 }
 
 pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Result<()> {
