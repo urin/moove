@@ -26,6 +26,7 @@
 - Given paths have to be convertible to UTF-8.
 - Collisions are detected *as much as possible*, but *not perfectly*.
   Does not verify all paths such as hard links and symbolic links.
+- Operations are validated case-insensitively whatever the platform is.
 
 ## Usage 🚀
 
@@ -41,6 +42,7 @@ Options:
   -q, --quiet                      No output to stdout/strerr even if error
   -a, --absolute                   Handle as absolute paths
   -d, --directory                  Directories themselves, not their contents
+  -s, --sort                       Sort files in natural order
   -w, --with-hidden                Include hidden files
   -e, --exclude-pattern <PATTERN>  Exclude regular expression pattern
   -c, --copy                       Copy without moving
@@ -103,8 +105,6 @@ cargo make
 
 ## TODOs ✅
 
-- Ignore case in case of Windows
-- Natural sort option
 - Recursive option
 - Maximum depth option
 - Depth option
@@ -116,6 +116,7 @@ cargo make
 - Exclude .gitignore option
 - Rollback option
 - Log and undo
+- Ignore case in case of Windows
 
 ## License 🌏
 

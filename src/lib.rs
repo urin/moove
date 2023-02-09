@@ -30,6 +30,9 @@ pub struct CommandLine {
     /// Directories themselves, not their contents
     #[arg(short, long)]
     pub directory: bool,
+    /// Sort files in natural order
+    #[arg(short, long)]
+    pub sort: bool,
     /// Include hidden files
     #[arg(short, long)]
     pub with_hidden: bool,
@@ -113,7 +116,7 @@ pub fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
             })? {
                 put_source(&mut children, &entry?.path(), args)?;
             }
-            children.sort_unstable_by(|a, b| a.abs.cmp(&b.abs));
+            children.sort_unstable_by(|a, b| natord::compare(&a.text, &b.text));
             sources.append(&mut children);
             if sources.is_empty() {
                 anyhow::bail!(
@@ -148,7 +151,7 @@ pub fn list_files(args: &[String]) -> Result<Vec<String>> {
         paths.append(
             &mut globbed
                 .iter()
-                .map(|g| g.to_string_lossy().to_string())
+                .map(|g| normalize(g).to_string_lossy().to_string())
                 .collect(),
         );
     }
