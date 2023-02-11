@@ -2,6 +2,7 @@
 
 use moove::*;
 
+use atty::Stream;
 use clap::Parser;
 use colored::*;
 
@@ -20,6 +21,22 @@ fn main() {
         args.absolute = args.absolute || env_args.absolute;
         args.directory = args.directory || env_args.directory;
         args.with_hidden = args.with_hidden || env_args.with_hidden;
+    }
+    // NOTE may be replaced with std::io::IsTerminal in the future
+    if !atty::is(Stream::Stdin) {
+        args.oops = true;
+        let mut line = String::new();
+        while let Ok(size) = std::io::stdin().read_line(&mut line) {
+            if size == 0 {
+                break;
+            }
+            args.paths
+                .push(line.trim_end_matches(['\r', '\n']).to_owned());
+            line.clear();
+        }
+    }
+    if args.paths.is_empty() {
+        args.paths.push(".".to_owned());
     }
     match try_main(&args) {
         Err(err) => {

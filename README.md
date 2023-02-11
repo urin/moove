@@ -105,18 +105,15 @@ cargo make
 
 ## TODOs ✅
 
+- Remove operation
+- Package for various platforms
+- Overwrite option
+- Exclude .gitignore option
 - Recursive option
 - Maximum depth option
 - Depth option
-- Package for various platforms
-- Enable applying pipe
-- Overwrite option
-- Remove operation
-- Create option
-- Exclude .gitignore option
-- Rollback option
-- Log and undo
 - Ignore case in case of Windows
+- Log and undo
 
 ## License 🌏
 

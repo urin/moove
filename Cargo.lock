@@ -354,6 +354,7 @@ name = "moove"
 version = "0.2.3"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "colored",
  "edit",

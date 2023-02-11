@@ -13,7 +13,7 @@ use regex::Regex;
 #[command(version)]
 pub struct CommandLine {
     /// Paths to move
-    #[arg(default_value = ".", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     pub paths: Vec<String>,
     /// Dry-run option
     #[arg(short = 'u', long)]
