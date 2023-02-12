@@ -12,27 +12,21 @@ use regex::Regex;
 #[derive(Debug, Parser, Default)]
 #[command(version)]
 pub struct CommandLine {
-    /// Paths to move
+    /// Paths or wildcard pattern to move
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     pub paths: Vec<String>,
-    /// Dry-run option
-    #[arg(short = 'u', long)]
-    pub dry_run: bool,
     /// Verbose output
     #[arg(short, long)]
     pub verbose: bool,
-    /// No output to stdout/strerr even if error
+    /// Sort in natural order
     #[arg(short, long)]
-    pub quiet: bool,
-    /// Handle as absolute paths
+    pub sort: bool,
+    /// Treat as absolute paths
     #[arg(short, long)]
     pub absolute: bool,
     /// Directories themselves, not their contents
     #[arg(short, long)]
     pub directory: bool,
-    /// Sort files in natural order
-    #[arg(short, long)]
-    pub sort: bool,
     /// Include hidden files
     #[arg(short, long)]
     pub with_hidden: bool,
@@ -42,9 +36,15 @@ pub struct CommandLine {
     /// Copy without moving
     #[arg(short, long)]
     pub copy: bool,
-    /// Abort in case of collision
+    /// Dry-run
+    #[arg(short = 'u', long)]
+    pub dry_run: bool,
+    /// Abort in case of collision (prompt as default)
     #[arg(short, long)]
     pub oops: bool,
+    /// No output to stdout/strerr even if error
+    #[arg(short, long)]
+    pub quiet: bool,
 }
 
 #[derive(Debug)]

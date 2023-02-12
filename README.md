@@ -17,9 +17,10 @@
 
 - Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor,
   and renames or moves them exactly as you edit them.
+- A pre-compiled single executable without any dependencies.
+  Thanks 💖 to [Zig](https://ziglang.org/) and [musl libc](https://musl.libc.org/).
 - Supports Linux, Mac, and Windows.
 - Supports wildcard patterns including Windows.
-- Default options can be specified as environment variable `MOOVE_OPTIONS`.
 
 ### Caveats ⚠
 
@@ -34,44 +35,41 @@
 Usage: moove [OPTIONS] [PATHS]...
 
 Arguments:
-  [PATHS]...  Paths to move [default: .]
+  [PATHS]...  Paths or wildcard pattern to move
 
 Options:
-  -u, --dry-run                    Dry-run option
   -v, --verbose                    Verbose output
-  -q, --quiet                      No output to stdout/strerr even if error
-  -a, --absolute                   Handle as absolute paths
+  -s, --sort                       Sort in natural order
+  -a, --absolute                   Treat as absolute paths
   -d, --directory                  Directories themselves, not their contents
-  -s, --sort                       Sort files in natural order
   -w, --with-hidden                Include hidden files
   -e, --exclude-pattern <PATTERN>  Exclude regular expression pattern
   -c, --copy                       Copy without moving
-  -o, --oops                       Abort in case of collision
+  -u, --dry-run                    Dry-run
+  -o, --oops                       Abort in case of collision (prompt as default)
+  -q, --quiet                      No output to stdout/strerr even if error
   -h, --help                       Print help
   -V, --version                    Print version
 ```
+
+### Configuration ⚙
+
+- Default command line options can be specified by environment variable `MOOVE_OPTIONS`.
+- Default editor is searched in following order.
+  - environment variable `VISUAL`
+  - environment variable `EDITOR`
+  - hardcoded lists
+  - platform-specific generic file openers
 
 ## Getting Started 📥
 
 ### Pre-compiled binaries
 
-- Download pre-compiled binaries.
-  - [moove-apple-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-aarch64.tar.gz)
-  - [moove-apple-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-x86_64.tar.gz)
-  - [moove-linux-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-aarch64.tar.gz)
-  - [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-x86_64.tar.gz)
-  - [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.tar.gz)
-
-- Extract a single binary file from the archive file. For example,
-  ```sh
-  tar xaf moove-linux-x86_64.tar.gz
-  ```
-
-- (Recommended) Specify text editor configuring environment variable `VISUAL` or `EDITOR`.
-  For example,
-  ```sh
-  export EDITOR=code
-  ```
+- [moove-apple-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-aarch64.tar.gz)
+- [moove-apple-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-x86_64.tar.gz)
+- [moove-linux-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-aarch64.tar.gz)
+- [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-x86_64.tar.gz)
+- [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.tar.gz)
 
 ### Install by cargo
 
