@@ -114,10 +114,14 @@ pub fn sources_from(args: &CommandLine) -> Result<Vec<Source>> {
                     path.to_string_lossy().yellow().underline()
                 )
             })? {
-                put_source(&mut children, &entry?.path(), args)?;
+                children.push(entry?.path());
             }
-            children.sort_unstable_by(|a, b| natord::compare(&a.text, &b.text));
-            sources.append(&mut children);
+            children.sort_unstable_by(|a, b| {
+                natord::compare(&a.to_string_lossy(), &b.to_string_lossy())
+            });
+            for child in children {
+                put_source(&mut sources, &child, args)?;
+            }
             if sources.is_empty() {
                 anyhow::bail!(
                     "Directory is empty. {}\n\
@@ -197,8 +201,8 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
             )
         })?,
     };
-    for src in sources.iter().map(|s| s.abs.as_path()) {
-        if src == new_src.abs {
+    for src in sources.iter() {
+        if src.abs == new_src.abs {
             anyhow::bail!(
                 "Duplicated source. {}",
                 new_src.abs.to_string_lossy().yellow().underline()
@@ -707,6 +711,16 @@ mod lib {
         assert!(sources_from(&setup.args).is_err());
         setup.args.paths.clear();
         setup.args.paths.push("/".to_owned());
+        assert!(sources_from(&setup.args).is_err());
+        setup.args.paths.clear();
+        setup
+            .args
+            .paths
+            .push(setup.sandbox.join("1").to_string_lossy().to_string());
+        setup
+            .args
+            .paths
+            .push(setup.args.paths.last().unwrap().clone());
         assert!(sources_from(&setup.args).is_err());
         Ok(())
     }
