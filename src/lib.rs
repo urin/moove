@@ -12,7 +12,7 @@ use regex::Regex;
 #[derive(Debug, Parser, Default)]
 #[command(version)]
 pub struct CommandLine {
-    /// Paths or wildcard pattern to move
+    /// Paths or wildcard patterns to move
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     pub paths: Vec<String>,
     /// Verbose output

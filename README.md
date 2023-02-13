@@ -35,7 +35,7 @@
 Usage: moove [OPTIONS] [PATHS]...
 
 Arguments:
-  [PATHS]...  Paths or wildcard pattern to move
+  [PATHS]...  Paths or wildcard patterns to move
 
 Options:
   -v, --verbose                    Verbose output
@@ -52,7 +52,7 @@ Options:
   -V, --version                    Print version
 ```
 
-### Configuration ⚙
+### Configuration 🎚
 
 - Default command line options can be specified by environment variable `MOOVE_OPTIONS`.
 - Default editor is searched in following order.
