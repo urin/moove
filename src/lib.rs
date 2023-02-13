@@ -1,6 +1,6 @@
 use std::fs::Metadata;
 use std::io::Write;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -155,7 +155,7 @@ pub fn list_files(args: &[String]) -> Result<Vec<String>> {
         paths.append(
             &mut globbed
                 .iter()
-                .map(|g| normalize(g).to_string_lossy().to_string())
+                .map(|g| g.to_string_lossy().to_string())
                 .collect(),
         );
     }
@@ -211,23 +211,6 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
     }
     sources.push(new_src);
     Ok(())
-}
-
-pub fn normalize(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                if !normalized.pop() {
-                    normalized.push(component);
-                }
-            }
-            _ => {
-                normalized.push(component);
-            }
-        }
-    }
-    normalized
 }
 
 /// TODO Can be replaced with `std::path::absolute` in the future.
@@ -327,7 +310,7 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
             anyhow::bail!(message);
         }
         for (src, line) in sources.iter().zip(lines.iter()) {
-            let dst_path = normalize(&PathBuf::from(&line));
+            let dst_path = PathBuf::from(&line);
             if dst_path == src.path || dst_path == src.abs {
                 continue;
             }
@@ -691,6 +674,20 @@ mod lib {
             .args
             .paths
             .push(setup.sandbox.join("1").to_string_lossy().to_string());
+        let sources = sources_from(&setup.args)?;
+        assert_eq!(sources[0].path, setup.sandbox.join("1/1.txt"));
+        assert_eq!(sources[1].path, setup.sandbox.join("1/11"));
+        assert_eq!(sources[2].path, setup.sandbox.join("1/12"));
+        setup.args.paths.clear();
+        setup.args.paths.push(
+            setup
+                .sandbox
+                .join("..")
+                .join(&setup.sandbox)
+                .join("1")
+                .to_string_lossy()
+                .to_string(),
+        );
         let sources = sources_from(&setup.args)?;
         assert_eq!(sources[0].path, setup.sandbox.join("1/1.txt"));
         assert_eq!(sources[1].path, setup.sandbox.join("1/11"));
