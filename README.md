@@ -1,7 +1,8 @@
 # moove - 🚚 Manipulate file names and locations
 
 [![Version][image-version]][url-version]
-[![Downloads][image-downloads]][url-latest-release]
+[![Downloads from crates.io][image-downloads-crates]][url-crates.io]
+[![Downloads from GitHub][image-downloads-github]][url-latest-release]
 [![License][image-license]](#license-)
 
 *moove* is a command line tool for renaming and moving files and directories using a text editor.
@@ -27,7 +28,7 @@
 - Given paths have to be convertible to UTF-8.
 - Collisions are detected *as much as possible*, but *not perfectly*.
   Does not verify all paths such as hard links and symbolic links.
-- Operations are validated case-insensitively whatever the platform is.
+- Operations are validated case-sensitively whatever the platform is.
 
 ## Usage 🚀
 
@@ -51,6 +52,13 @@ Options:
   -h, --help                       Print help
   -V, --version                    Print version
 ```
+
+- Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor.
+- You can edit the list as you want to operate. The order of lines corresponds to the original one. Empty lines will be ignored.
+- Operations are canceled if you close the editor without saving.
+- If a line starts with `//`, the file will be removed regardless modification of the remaining part of the line.
+- Intermediate directories will be created if you modify its ancestor directories.
+- In case of line number change or collision, asks whether to re-edit or abort. Aborts without asking if '--oops' is specified.
 
 ### Configuration 🎚
 
@@ -93,17 +101,24 @@ cargo install cargo-make
 cargo make setup
 ```
 
-### Building 🔨
+### Testing and Building 🔨
 
-To build binaries for supported platforms,
+- To test,
+  ```txt
+  cargo make test
+  ```
 
-```sh
-cargo make
-```
+- To build binaries for release,
+  ```txt
+  cargo make
+  ```
+  Pre-compiled binaries will be in the directory `dist`.
+
+  ⚠  Binaries does not have execute permission in case of windows.
 
 ## TODOs ✅
 
-- Remove operation
+- Add demos to README
 - Package for various platforms
 - Overwrite option
 - Exclude .gitignore option
@@ -133,11 +148,13 @@ dual licensed as above, without any additional terms or conditions.
 <!-- Reference -->
 
 [image-license]: https://img.shields.io/badge/license-MIT%2FApache--2.0-lightgrey?style=flat
-[image-downloads]: https://img.shields.io/github/downloads/urin/moove/total?style=flat
+[image-downloads-crates]: https://img.shields.io/crates/d/moove?label=downloads&style=flat
+[image-downloads-github]: https://img.shields.io/github/downloads/urin/moove/total?label=from%20GitHub&style=flat
 [image-version]: https://img.shields.io/crates/v/moove.svg?style=flat
 
 [url-license-mit]: https://github.com/urin/moove/blob/main/LICENSE-MIT
 [url-license-apache]: https://github.com/urin/moove/blob/main/LICENSE-APACHE
 [url-latest-release]: https://github.com/urin/moove/releases/latest
 [url-releases]: https://github.com/urin/moove/releases
-[url-version]: https://crates.io/crates/moove
+[url-version]: https://crates.io/crates/moove/versions
+[url-crates.io]: https://crates.io/crates/moove

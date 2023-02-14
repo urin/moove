@@ -181,7 +181,7 @@ fn rel_operate_normally() -> Result<()> {
 fn rel_rename_file() -> Result<()> {
     let setup = &Setup::init("rename_file")?;
     let operation = &setup.operation_from("1/11/11.txt", "1/11/renamed-11.txt");
-    execute_move(operation, &setup.args)?;
+    execute_move_or_copy(operation, &setup.args)?;
     assert!(operation.dst.path.is_file());
     assert!(!operation.src.path.is_file());
     Ok(())
@@ -192,7 +192,7 @@ fn rel_rename_file() -> Result<()> {
 fn rel_rename_dir() -> Result<()> {
     let setup = &Setup::init("rename_dir")?;
     let operation = &setup.operation_from("1/11", "1/renamed-11");
-    execute_move(operation, &setup.args)?;
+    execute_move_or_copy(operation, &setup.args)?;
     assert!(operation.dst.path.is_dir());
     assert!(!operation.src.path.is_dir());
     Ok(())
@@ -203,7 +203,7 @@ fn rel_rename_dir() -> Result<()> {
 fn rel_rename_dir_with_sub_dirs() -> Result<()> {
     let setup = &Setup::init("rename_dir_with_sub_dirs")?;
     let operation = &setup.operation_from("1", "renamed-1");
-    execute_move(operation, &setup.args)?;
+    execute_move_or_copy(operation, &setup.args)?;
     assert!(operation.dst.path.is_dir());
     assert!(!operation.src.path.is_dir());
     Ok(())
@@ -214,7 +214,7 @@ fn rel_rename_dir_with_sub_dirs() -> Result<()> {
 fn rel_move_and_rename_file() -> Result<()> {
     let setup = &Setup::init("move_and_rename_file")?;
     let operation = &setup.operation_from("2/21/211/211.txt", "1/renamed-211.txt");
-    execute_move(operation, &setup.args)?;
+    execute_move_or_copy(operation, &setup.args)?;
     assert!(operation.dst.path.is_file());
     assert!(!operation.src.path.is_file());
     Ok(())
@@ -225,7 +225,7 @@ fn rel_move_and_rename_file() -> Result<()> {
 fn rel_move_and_rename_directory() -> Result<()> {
     let setup = &Setup::init("move_and_rename_directory")?;
     let operation = &setup.operation_from("2/22", "1/3");
-    execute_move(operation, &setup.args)?;
+    execute_move_or_copy(operation, &setup.args)?;
     assert!(operation.dst.path.is_dir());
     assert!(!operation.src.path.is_dir());
     Ok(())

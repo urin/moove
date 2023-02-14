@@ -57,6 +57,8 @@ pub struct Operation {
 #[derive(Debug)]
 pub enum OperationKind {
     Move,
+    Copy,
+    Remove,
 }
 
 #[derive(Debug, Clone)]
@@ -213,7 +215,7 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
     Ok(())
 }
 
-/// TODO Can be replaced with `std::path::absolute` in the future.
+/// NOTE Can be replaced with `std::path::absolute` in the future.
 #[cfg(target_family = "windows")]
 pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
     path.normalize_virtually().with_context(|| {
@@ -224,7 +226,7 @@ pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
     })
 }
 
-/// TODO Can be replaced with `std::path::absolute` in the future.
+/// NOTE Can be replaced with `std::path::absolute` in the future.
 #[cfg(target_family = "unix")]
 pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
     path.normalize().with_context(|| {
@@ -286,12 +288,7 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
                 if line.is_empty() {
                     return None;
                 }
-                let line = line.trim_end_matches(SEPARATORS);
-                Some(if cfg!(target_family = "windows") {
-                    line.replace('/', "\\")
-                } else {
-                    line.to_string()
-                })
+                Some(line.trim_end_matches(SEPARATORS))
             })
             .collect::<Vec<_>>();
         if lines.len() != sources.len() {
@@ -310,27 +307,43 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
             anyhow::bail!(message);
         }
         for (src, line) in sources.iter().zip(lines.iter()) {
+            let line = line.to_owned();
+            let (kind, line) = if line.starts_with("//") {
+                (OperationKind::Remove, src.text.as_str())
+            } else if args.copy {
+                (OperationKind::Copy, line)
+            } else {
+                (OperationKind::Move, line)
+            };
+            let line = if cfg!(target_family = "windows") {
+                line.replace('/', "\\")
+            } else {
+                line.to_string()
+            };
             let dst_path = PathBuf::from(&line);
-            if dst_path == src.path || dst_path == src.abs {
+            let removing = matches!(kind, OperationKind::Remove);
+            if !removing && (dst_path == src.path || dst_path == src.abs) {
                 continue;
             }
             let new_operation = Operation {
-                kind: OperationKind::Move,
+                kind,
                 src: src.to_owned(),
                 dst: Destination {
-                    text: line.to_string(),
+                    text: line.to_owned(),
                     path: dst_path.to_owned(),
                 },
             };
-            if let Err(message) = is_operational(&operations, &new_operation) {
-                if !args.oops {
-                    println!("{}", message.to_string().yellow());
-                    if prompt_redo()? {
-                        continue 'redo;
+            if !removing {
+                if let Err(message) = is_operational(&operations, &new_operation) {
+                    if !args.oops {
+                        println!("{}", message.to_string().yellow());
+                        if prompt_redo()? {
+                            continue 'redo;
+                        }
+                        break 'redo;
                     }
-                    break 'redo;
+                    anyhow::bail!(message);
                 }
-                anyhow::bail!(message);
             }
             operations.push(new_operation);
         }
@@ -415,7 +428,7 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
             if args.dry_run {
                 return Ok(());
             }
-            execute_move(o, args)?;
+            execute_move_or_copy(o, args)?;
             if !args.quiet {
                 println!(
                     "{} → {}",
@@ -424,15 +437,106 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
                 );
             }
         }
+        OperationKind::Copy => {
+            if !args.quiet && (args.verbose || args.dry_run) {
+                println!(
+                    "{} {}{}{}",
+                    "Copy".dimmed(),
+                    o.src.text.dimmed().underline(),
+                    " → ".dimmed(),
+                    o.dst.text.dimmed().underline()
+                );
+            }
+            if args.dry_run {
+                return Ok(());
+            }
+            execute_move_or_copy(o, args)?;
+            if !args.quiet {
+                println!(
+                    "{} → {}",
+                    o.src.text.green().underline(),
+                    o.dst.text.green().underline()
+                );
+            }
+        }
+        OperationKind::Remove => {
+            if !args.quiet && (args.verbose || args.dry_run) {
+                println!("{} {}", "Remove".dimmed(), o.src.text.dimmed().underline());
+            }
+            if args.dry_run {
+                return Ok(());
+            }
+            execute_remove(o, args)?;
+        }
     };
     Ok(())
 }
 
-pub fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
-    let Operation { src, dst, .. } = operation;
-    //
-    // Create parent directory if missing.
-    //
+pub fn execute_move_or_copy(operation: &Operation, args: &CommandLine) -> Result<()> {
+    let Operation { kind, src, dst, .. } = operation;
+    let moving = matches!(kind, OperationKind::Move);
+    let dst_parent = create_dir(dst, args)?;
+    if should_relocate(&src.path, &dst_parent) {
+        if !args.quiet && args.verbose {
+            println!(
+                "{} {} {}",
+                if moving { "Moving" } else { "Copying" }.dimmed(),
+                src.abs.to_string_lossy().dimmed().underline(),
+                dst_parent.to_string_lossy().dimmed().underline()
+            );
+        }
+        if moving {
+            fs_extra::move_items(&[&src.path], &dst_parent, &CopyOptions::default()).with_context(
+                || {
+                    format!(
+                        "Failed to move {} to {}",
+                        src.text.yellow().underline(),
+                        dst_parent.to_string_lossy().yellow().underline()
+                    )
+                },
+            )?;
+        } else {
+            fs_extra::copy_items(&[&src.path], &dst_parent, &CopyOptions::default()).with_context(
+                || {
+                    format!(
+                        "Failed to move {} to {}",
+                        src.text.yellow().underline(),
+                        dst_parent.to_string_lossy().yellow().underline()
+                    )
+                },
+            )?;
+        }
+    }
+    // Rename if its file name need to be changed.
+    // NOTE Can be unwrapped safely, `src` and `dst` cannot be root nor `..`.
+    let src_basename = src.path.file_name().unwrap();
+    let dst_basename = dst.path.file_name().unwrap();
+    if src_basename != dst_basename {
+        let from = &dst_parent.join(src_basename);
+        let to = &dst_parent.join(dst_basename);
+        if !args.quiet && args.verbose {
+            println!(
+                "{} {}{}{}",
+                "Renaming".dimmed(),
+                from.to_string_lossy().dimmed().underline(),
+                " → ".dimmed(),
+                to.to_string_lossy().dimmed().underline()
+            );
+        }
+        // Destination is never over-written, ensured when the operation was made.
+        std::fs::rename(from, to).with_context(|| {
+            format!(
+                "Failed to rename {} to {}",
+                from.to_string_lossy().yellow().underline(),
+                to.to_string_lossy().yellow().underline()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+/// Create parent directory if missing.
+pub fn create_dir(dst: &Destination, args: &CommandLine) -> Result<PathBuf> {
     let current_dir = std::env::current_dir().context("Failed to get current directory.")?;
     let dst_parent = if dst.text.contains(std::path::MAIN_SEPARATOR) {
         dst.path.parent().unwrap()
@@ -454,86 +558,34 @@ pub fn execute_move(operation: &Operation, args: &CommandLine) -> Result<()> {
             )
         })?;
     }
-    //
-    // Move source if its parent need to be changed.
-    //
-    if let Some(src_parent) = src.path.parent() {
-        if !src_parent.as_os_str().is_empty() && src_parent != dst_parent {
-            if !args.quiet && args.verbose {
-                println!(
-                    "{} {} {}",
-                    "Moving".dimmed(),
-                    src.abs.to_string_lossy().dimmed().underline(),
-                    dst_parent.to_string_lossy().dimmed().underline()
-                );
-            }
-            if args.copy {
-                fs_extra::copy_items(&[&src.path], dst_parent, &CopyOptions::default())
-                    .with_context(|| {
-                        format!(
-                            "Failed to copy {} to {}",
-                            src.text.yellow().underline(),
-                            dst_parent.to_string_lossy().yellow().underline()
-                        )
-                    })?;
-            } else {
-                fs_extra::move_items(&[&src.path], dst_parent, &CopyOptions::default())
-                    .with_context(|| {
-                        format!(
-                            "Failed to move {} to {}",
-                            src.text.yellow().underline(),
-                            dst_parent.to_string_lossy().yellow().underline()
-                        )
-                    })?;
-            }
-        }
+    Ok(dst_parent.to_path_buf())
+}
+
+pub fn should_relocate(src: &Path, dst_parent: &Path) -> bool {
+    // NOTE `Path.parent()` returns `Some("")` in case of simple relative path.
+    if let Some(src_parent) = src.parent() {
+        !src_parent.as_os_str().is_empty() && src_parent != dst_parent
+    } else {
+        false
     }
-    //
-    // Rename if its file name need to be changed.
-    //
-    // NOTE Can be unwrapped safely, `src` and `dst` cannot be root nor `..`.
-    let src_basename = src.path.file_name().unwrap();
-    let dst_basename = dst.path.file_name().unwrap();
-    if src_basename != dst_basename {
-        let from = &dst_parent.join(src_basename);
-        let to = &dst_parent.join(dst_basename);
-        // Destination is never over-written.
-        // It was ensured when the operation was made.
-        if args.copy {
-            if !args.quiet && args.verbose {
-                println!(
-                    "{} {}{}{}",
-                    "Copying".dimmed(),
-                    from.to_string_lossy().dimmed().underline(),
-                    " → ".dimmed(),
-                    to.to_string_lossy().dimmed().underline()
-                );
-            }
-            std::fs::copy(from, to).with_context(|| {
-                format!(
-                    "Failed to copy {} to {}",
-                    from.to_string_lossy().yellow().underline(),
-                    to.to_string_lossy().yellow().underline()
-                )
-            })?;
-        } else {
-            if !args.quiet && args.verbose {
-                println!(
-                    "{} {}{}{}",
-                    "Renaming".dimmed(),
-                    from.to_string_lossy().dimmed().underline(),
-                    " → ".dimmed(),
-                    to.to_string_lossy().dimmed().underline()
-                );
-            }
-            std::fs::rename(from, to).with_context(|| {
-                format!(
-                    "Failed to rename {} to {}",
-                    from.to_string_lossy().yellow().underline(),
-                    to.to_string_lossy().yellow().underline()
-                )
-            })?;
-        }
+}
+
+pub fn execute_remove(operation: &Operation, _args: &CommandLine) -> Result<()> {
+    let path = &operation.src.abs;
+    if path.is_dir() {
+        std::fs::remove_dir_all(path).with_context(|| {
+            format!(
+                "Failed to remove {}",
+                path.to_string_lossy().yellow().underline()
+            )
+        })?;
+    } else {
+        std::fs::remove_file(path).with_context(|| {
+            format!(
+                "Failed to remove {}",
+                path.to_string_lossy().yellow().underline()
+            )
+        })?;
     }
     Ok(())
 }
@@ -774,7 +826,7 @@ mod lib {
     fn rename_file() -> Result<()> {
         let setup = &Setup::init("rename_file")?;
         let operation = &setup.operation_from("1/11/11.txt", "1/11/renamed-11.txt");
-        execute_move(operation, &setup.args)?;
+        execute_move_or_copy(operation, &setup.args)?;
         assert!(operation.dst.path.is_file());
         assert!(!operation.src.path.is_file());
         Ok(())
@@ -784,7 +836,7 @@ mod lib {
     fn rename_dir() -> Result<()> {
         let setup = &Setup::init("rename_dir")?;
         let operation = &setup.operation_from("1/11", "1/renamed-11");
-        execute_move(operation, &setup.args)?;
+        execute_move_or_copy(operation, &setup.args)?;
         assert!(operation.dst.path.is_dir());
         assert!(!operation.src.path.is_dir());
         Ok(())
@@ -794,7 +846,7 @@ mod lib {
     fn rename_dir_with_sub_dirs() -> Result<()> {
         let setup = &Setup::init("rename_dir_with_sub_dirs")?;
         let operation = &setup.operation_from("1", "renamed-1");
-        execute_move(operation, &setup.args)?;
+        execute_move_or_copy(operation, &setup.args)?;
         assert!(operation.dst.path.is_dir());
         assert!(!operation.src.path.is_dir());
         Ok(())
@@ -804,7 +856,7 @@ mod lib {
     fn move_and_rename_file() -> Result<()> {
         let setup = &Setup::init("move_and_rename_file")?;
         let operation = &setup.operation_from("2/21/211/211.txt", "1/renamed-211.txt");
-        execute_move(operation, &setup.args)?;
+        execute_move_or_copy(operation, &setup.args)?;
         assert!(operation.dst.path.is_file());
         assert!(!operation.src.path.is_file());
         Ok(())
@@ -814,7 +866,7 @@ mod lib {
     fn move_and_rename_directory() -> Result<()> {
         let setup = &Setup::init("move_and_rename_directory")?;
         let operation = &setup.operation_from("2/22", "1/3");
-        execute_move(operation, &setup.args)?;
+        execute_move_or_copy(operation, &setup.args)?;
         assert!(operation.dst.path.is_dir());
         assert!(!operation.src.path.is_dir());
         Ok(())
