@@ -28,7 +28,7 @@
 - Given paths have to be convertible to UTF-8.
 - Collisions are detected *as much as possible*, but *not perfectly*.
   Does not verify all paths such as hard links and symbolic links.
-- Operations are validated case-sensitively whatever the platform is.
+- Operations are validated case-sensitively even if the platform is Windows.
 
 ## Usage 🚀
 
@@ -56,9 +56,9 @@ Options:
 - Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor.
 - You can edit the list as you want to operate. The order of lines corresponds to the original one. Empty lines will be ignored.
 - Operations are canceled if you close the editor without saving.
-- If a line starts with `//`, the file will be removed regardless modification of the remaining part of the line.
-- Intermediate directories will be created if you modify its ancestor directories.
-- In case of line number change or collision, asks whether to re-edit or abort. Aborts without asking if '--oops' is specified.
+- If a line starts with `//`, the file, directory and its contents will be removed regardless modification of the remaining part of the line.
+- Destination directories will be created automatically.
+- In case of line number change or collision, asks whether to re-edit or abort. Aborts without asking if `--oops` is specified.
 
 ### Configuration 🎚
 
@@ -118,15 +118,16 @@ cargo make setup
 
 ## TODOs ✅
 
+- Ignore case in case of Windows
 - Add demos to README
 - Package for various platforms
 - Overwrite option
 - Exclude .gitignore option
+- Move to trash instead of removing as default
+- Logging
 - Recursive option
 - Maximum depth option
 - Depth option
-- Ignore case in case of Windows
-- Log and undo
 
 ## License 🌏
 

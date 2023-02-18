@@ -24,6 +24,29 @@ args = [
     "--target", "x86_64-unknown-linux-musl",
 ]
 
+[tasks.build-linux]
+command = "cargo"
+args = [
+    "zigbuild", "--release",
+    "--target", "aarch64-unknown-linux-musl",
+    "--target", "x86_64-unknown-linux-musl",
+]
+
+[tasks.build-apple]
+command = "cargo"
+args = [
+    "zigbuild", "--release",
+    "--target", "aarch64-apple-darwin",
+    "--target", "x86_64-apple-darwin",
+]
+
+[tasks.build-windows]
+command = "cargo"
+args = [
+    "zigbuild", "--release",
+    "--target", "x86_64-pc-windows-gnu",
+]
+
 [tasks.dist]
 script_runner = "@shell"
 script = '''
