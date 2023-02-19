@@ -81,9 +81,19 @@ trait PathUtilExt {
     /// NOTE Can be replaced with `std::path::absolute` in the future.
     fn absolute(&self) -> Result<normpath::BasePathBuf>;
     fn is_hidden(&self) -> Result<bool>;
+    fn is_identical(&self, other: &Path) -> bool;
 }
 
 impl PathUtilExt for Path {
+    fn is_identical(&self, other: &Path) -> bool {
+        if cfg!(target_family = "windows") {
+            self == other
+                || self.as_os_str().to_ascii_lowercase() == other.as_os_str().to_ascii_lowercase()
+        } else {
+            self == other
+        }
+    }
+
     #[cfg(target_family = "windows")]
     fn absolute(&self) -> Result<normpath::BasePathBuf> {
         self.normalize_virtually().with_context(|| {
@@ -258,7 +268,7 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
         })?,
     };
     for src in sources.iter() {
-        if src.abs == new_src.abs {
+        if src.abs.is_identical(&new_src.abs) {
             anyhow::bail!(
                 "Duplicated source. {}",
                 new_src.abs.to_string_lossy().yellow().underline()
@@ -392,12 +402,15 @@ pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Re
             src.text.underline()
         )
     }
-    if operations.iter().any(|o| o.dst.path == dst.path) {
+    if operations
+        .iter()
+        .any(|o| o.dst.path.is_identical(&dst.path))
+    {
         anyhow::bail!("Duplicated destination. {}", dst.text.yellow().underline());
     }
     if operations
         .iter()
-        .any(|o| o.dst.path.ancestors().any(|a| a == dst.path))
+        .any(|o| o.dst.path.ancestors().any(|a| a.is_identical(&dst.path)))
     {
         anyhow::bail!(
             "Destination should not be included in other destination. {}",
@@ -407,7 +420,7 @@ pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Re
     if dst.path.exists() {
         anyhow::bail!("Destination exists. {}", dst.text.yellow().underline())
     }
-    if dst.path.ancestors().any(|d| d == src.path) {
+    if dst.path.ancestors().any(|d| d.is_identical(&src.path)) {
         anyhow::bail!(
             "Destination should not be included in source.\n\
              Source:      {}\n\

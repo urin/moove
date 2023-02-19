@@ -28,7 +28,6 @@
 - Given paths have to be convertible to UTF-8.
 - Collisions are detected *as much as possible*, but *not perfectly*.
   Does not verify all paths such as hard links and symbolic links.
-- Operations are validated case-sensitively even if the platform is Windows.
 
 ## Usage 🚀
 
@@ -118,7 +117,6 @@ cargo make setup
 
 ## TODOs ✅
 
-- Ignore case in case of Windows
 - Add demos to README
 - Package for various platforms
 - Overwrite option
