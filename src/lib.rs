@@ -207,7 +207,7 @@ pub fn list_files(args: &[String]) -> Result<Vec<String>> {
         if globbed.is_empty() {
             anyhow::bail!("Failed to access {}", arg);
         }
-        globbed.sort_unstable_by_key(|a| a.canonicalize().unwrap());
+        globbed.sort_unstable();
         paths.append(
             &mut globbed
                 .iter()
