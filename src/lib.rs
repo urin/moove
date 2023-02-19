@@ -77,6 +77,60 @@ pub struct Destination {
 
 static SEPARATORS: &[char] = &['/', '\\'];
 
+trait PathUtilExt {
+    /// NOTE Can be replaced with `std::path::absolute` in the future.
+    fn absolute(&self) -> Result<normpath::BasePathBuf>;
+    fn is_hidden(&self) -> Result<bool>;
+}
+
+impl PathUtilExt for Path {
+    #[cfg(target_family = "windows")]
+    fn absolute(&self) -> Result<normpath::BasePathBuf> {
+        self.normalize_virtually().with_context(|| {
+            format!(
+                "Failed to normalize path. {}",
+                self.to_string_lossy().yellow().underline()
+            )
+        })
+    }
+
+    #[cfg(target_family = "unix")]
+    fn absolute(&self) -> Result<normpath::BasePathBuf> {
+        self.normalize().with_context(|| {
+            format!(
+                "Failed to normalize path. {}",
+                self.to_string_lossy().yellow().underline()
+            )
+        })
+    }
+
+    #[cfg(target_family = "windows")]
+    fn is_hidden(&self) -> Result<bool> {
+        use std::os::windows::prelude::*;
+        let metadata = std::fs::metadata(self).with_context(|| {
+            format!(
+                "Failed to read metadata of {}",
+                self.to_string_lossy().yellow().underline()
+            )
+        })?;
+        Ok((metadata.file_attributes() & 0x2) > 0)
+    }
+
+    #[cfg(target_family = "unix")]
+    fn is_hidden(&self) -> Result<bool> {
+        Ok(self
+            .file_name()
+            .with_context(|| {
+                format!(
+                    "Failed to get file name {}",
+                    self.to_string_lossy().yellow().underline()
+                )
+            })?
+            .to_string_lossy()
+            .starts_with('.'))
+    }
+}
+
 pub fn try_main(args: &CommandLine) -> Result<usize> {
     let sources = &sources_from(args)?;
     let operations = &operations_from(sources, args)?;
@@ -165,7 +219,7 @@ pub fn list_files(args: &[String]) -> Result<Vec<String>> {
 }
 
 pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) -> Result<()> {
-    let abs = absolute(path)?;
+    let abs = path.absolute()?;
     let abs = abs.as_path();
     if abs.parent().is_none() {
         anyhow::bail!(
@@ -173,7 +227,7 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
             path.to_string_lossy().yellow().underline()
         );
     }
-    if !args.with_hidden && is_hidden(abs)? {
+    if !args.with_hidden && abs.is_hidden()? {
         return Ok(());
     }
     let new_path = if args.absolute { abs } else { path };
@@ -213,54 +267,6 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
     }
     sources.push(new_src);
     Ok(())
-}
-
-/// NOTE Can be replaced with `std::path::absolute` in the future.
-#[cfg(target_family = "windows")]
-pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
-    path.normalize_virtually().with_context(|| {
-        format!(
-            "Failed to normalize path. {}",
-            path.to_string_lossy().yellow().underline()
-        )
-    })
-}
-
-/// NOTE Can be replaced with `std::path::absolute` in the future.
-#[cfg(target_family = "unix")]
-pub fn absolute(path: &Path) -> Result<normpath::BasePathBuf> {
-    path.normalize().with_context(|| {
-        format!(
-            "Failed to normalize path. {}",
-            path.to_string_lossy().yellow().underline()
-        )
-    })
-}
-
-#[cfg(target_family = "windows")]
-pub fn is_hidden(file_path: &Path) -> Result<bool> {
-    use std::os::windows::prelude::*;
-    let metadata = std::fs::metadata(file_path).with_context(|| {
-        format!(
-            "Failed to read metadata of {}",
-            file_path.to_string_lossy().yellow().underline()
-        )
-    })?;
-    Ok((metadata.file_attributes() & 0x2) > 0)
-}
-
-#[cfg(target_family = "unix")]
-pub fn is_hidden(file_path: &Path) -> Result<bool> {
-    Ok(file_path
-        .file_name()
-        .with_context(|| {
-            format!(
-                "Failed to get file name {}",
-                file_path.to_string_lossy().yellow().underline()
-            )
-        })?
-        .to_string_lossy()
-        .starts_with('.'))
 }
 
 pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<Operation>> {
