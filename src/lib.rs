@@ -314,7 +314,7 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
                 sources.len().to_string().yellow()
             );
             if !args.oops {
-                println!("{}", message.to_string().yellow());
+                println!("{}", message);
                 if prompt_redo()? {
                     continue 'redo;
                 }
@@ -352,7 +352,7 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
             if !removing {
                 if let Err(message) = is_operational(&operations, &new_operation) {
                     if !args.oops {
-                        println!("{}", message.to_string().yellow());
+                        println!("{}", message);
                         if prompt_redo()? {
                             continue 'redo;
                         }
@@ -420,13 +420,25 @@ pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Re
     if dst.path.exists() {
         anyhow::bail!("Destination exists. {}", dst.text.yellow().underline())
     }
-    if dst.path.ancestors().any(|d| d.is_identical(&src.path)) {
+    if dst.path.ancestors().any(|a| {
+        if !a.exists() {
+            false
+        } else if a.is_file() {
+            true
+        } else if a.is_symlink() {
+            if let Ok(p) = a.read_link() {
+                p.is_file()
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }) {
         anyhow::bail!(
-            "Destination should not be included in source.\n\
-             Source:      {}\n\
+            "Ancestor of destination should not be a file.\n\
              Destination: {}",
-            dst.text.yellow().underline(),
-            src.text.yellow().underline()
+            dst.text.yellow().underline()
         );
     }
     Ok(())
