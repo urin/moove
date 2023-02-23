@@ -13,6 +13,7 @@
 [💙 Contributing](#contributing-) \|
 [🌏 License](#license-)
 
+![Demo](https://raw.githubusercontent.com/urin/moove/main/README-demo.webp)
 
 ## Features 🎨
 
@@ -53,9 +54,9 @@ Options:
 ```
 
 - Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor.
-- You can edit the list as you want to operate. The order of lines corresponds to the original one. Empty lines will be ignored.
+- You can edit the list as you want to operate. The order of lines after editing corresponds to the original one. Empty lines will be ignored.
 - Operations are canceled if you close the editor without saving.
-- If a line starts with `//`, the file, directory and its contents will be removed regardless modification of the remaining part of the line.
+- If a line after editing starts with `//`, the file and directory (and its contents) will be removed regardless modification of the remaining part of the line.
 - Destination directories will be created automatically.
 - In case of line number change or collision, asks whether to re-edit or abort. Aborts without asking if `--oops` is specified.
 
@@ -113,11 +114,10 @@ cargo make setup
   ```
   Pre-compiled binaries will be in the directory `dist`.
 
-  ⚠  Binaries does not have execute permission in case of windows.
+  ⚠  Binaries does not have execute permission in case of building on windows.
 
 ## TODOs ✅
 
-- Add demos to README
 - Package for various platforms
 - Overwrite option
 - Exclude .gitignore option
