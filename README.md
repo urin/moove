@@ -22,7 +22,7 @@
 - A pre-compiled single executable without any dependencies.
   Thanks 💖 to [Zig](https://ziglang.org/) and [musl libc](https://musl.libc.org/).
 - Supports Linux, Mac, and Windows.
-- Supports wildcard patterns including Windows.
+- Supports wildcard patterns, including Windows.
 
 ### Caveats ⚠
 
@@ -40,7 +40,7 @@ Arguments:
 
 Options:
   -v, --verbose                    Verbose output
-  -s, --sort                       Sort in natural order
+  -s, --sort                       Sort in the natural order
   -a, --absolute                   Treat as absolute paths
   -d, --directory                  Directories themselves, not their contents
   -w, --with-hidden                Include hidden files
@@ -56,14 +56,14 @@ Options:
 - Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor.
 - You can edit the list as you want to operate. The order of lines after editing corresponds to the original one. Empty lines will be ignored.
 - Operations are canceled if you close the editor without saving.
-- If a line after editing starts with `//`, the file and directory (and its contents) will be removed regardless modification of the remaining part of the line.
+- If a line starts with `//`, the file and directory (and its contents) will be removed regardless of modification of the remaining part of the line.
 - Destination directories will be created automatically.
 - In case of line number change or collision, asks whether to re-edit or abort. Aborts without asking if `--oops` is specified.
 
 ### Configuration 🎚
 
-- Default command line options can be specified by environment variable `MOOVE_OPTIONS`.
-- Default editor is searched in following order.
+- Default command line options can be specified by the environment variable `MOOVE_OPTIONS`.
+- The default editor is searched in the following order.
   - environment variable `VISUAL`
   - environment variable `EDITOR`
   - hardcoded lists
@@ -84,6 +84,11 @@ Options:
 ```sh
 cargo install moove
 ```
+
+## Alternatives
+
+- [laurent22/massren](https://github.com/laurent22/massren)
+- [itchyny/mmv](https://github.com/itchyny/mmv)
 
 ## Contributing 💙
 
@@ -114,14 +119,14 @@ cargo make setup
   ```
   Pre-compiled binaries will be in the directory `dist`.
 
-  ⚠  Binaries does not have execute permission in case of building on windows.
+  ⚠  Binaries do not have execute permission in case of building on windows.
 
 ## TODOs ✅
 
 - Package for various platforms
 - Overwrite option
 - Exclude .gitignore option
-- Move to trash instead of removing as default
+- Move to trash instead of removing as the default
 - Logging
 - Recursive option
 - Maximum depth option
