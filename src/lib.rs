@@ -498,6 +498,9 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
                 return Ok(());
             }
             execute_remove(o, args)?;
+            if !args.quiet {
+                println!("Removed {}", o.src.text.green().underline());
+            }
         }
     };
     Ok(())
