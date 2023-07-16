@@ -2,9 +2,9 @@
 
 use moove::*;
 
-use atty::Stream;
 use clap::Parser;
 use colored::*;
+use std::io::IsTerminal;
 
 #[doc(hidden)]
 fn main() {
@@ -22,11 +22,11 @@ fn main() {
         args.directory = args.directory || env_args.directory;
         args.with_hidden = args.with_hidden || env_args.with_hidden;
     }
-    // NOTE may be replaced with std::io::IsTerminal in the future
-    if !atty::is(Stream::Stdin) {
+    let stdin = std::io::stdin();
+    if !stdin.is_terminal() {
         args.oops = true;
         let mut line = String::new();
-        while let Ok(size) = std::io::stdin().read_line(&mut line) {
+        while let Ok(size) = stdin.read_line(&mut line) {
             if size == 0 {
                 break;
             }
