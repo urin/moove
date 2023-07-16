@@ -97,7 +97,7 @@ Followings are used to build.
 - [cargo-make](https://crates.io/crates/cargo-make/) as the task runner
 - [cargo-zigbuild](https://crates.io/crates/cargo-zigbuild) to build for multiple platforms
 
-### Setup building environment 🪜
+### Setup development environment 🪜
 
 1. Install [Zig](https://ziglang.org/) according to [the Zig document](https://ziglang.org/learn/getting-started/#installing-zig).
 2. Run following commands.

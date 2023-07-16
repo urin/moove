@@ -88,3 +88,7 @@ args = ["update"]
 command = "cargo"
 args = ["upgrade"]
 
+[tasks.release]
+command = "cargo"
+args = ["release"]
+
