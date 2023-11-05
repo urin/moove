@@ -21,7 +21,7 @@
   and renames or moves them exactly as you edit them.
 - A pre-compiled single executable without any dependencies.
   Thanks 💖 to [Zig](https://ziglang.org/) and [musl libc](https://musl.libc.org/).
-- Supports Linux, Mac, and Windows.
+- Supports Linux, Mac and Windows.
 - Supports wildcard patterns, including Windows.
 
 ### Caveats ⚠
