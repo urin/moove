@@ -2,7 +2,6 @@
 
 [![Version][image-version]][url-version]
 [![Downloads from crates.io][image-downloads-crates]][url-crates.io]
-[![Downloads from GitHub][image-downloads-github]][url-latest-release]
 [![License][image-license]](#license-)
 
 *moove* is a command line tool for renaming and moving files and directories using a text editor.
@@ -153,7 +152,6 @@ dual licensed as above, without any additional terms or conditions.
 
 [image-license]: https://img.shields.io/badge/license-MIT%2FApache--2.0-lightgrey?style=flat
 [image-downloads-crates]: https://img.shields.io/crates/d/moove?label=downloads&style=flat
-[image-downloads-github]: https://img.shields.io/github/downloads/urin/moove/total?label=from%20GitHub&style=flat
 [image-version]: https://img.shields.io/crates/v/moove.svg?style=flat
 
 [url-license-mit]: https://github.com/urin/moove/blob/main/LICENSE-MIT
