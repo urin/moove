@@ -3,7 +3,7 @@ name = "moove"
 version = "0.2.8"
 license = "MIT/Apache-2.0"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.85.0"
 description = "🚚 Manipulate file names and locations"
 keywords = ["mv", "rename", "move"]
 categories = ["command-line-utilities", "filesystem"]
@@ -22,6 +22,9 @@ glob = "0.3.3"
 natord = "1.0.9"
 normpath = "1.1.1"
 regex = "1.12.2"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+trash = "5.2.5"
 
 [dev-dependencies]
 serial_test = "2.0.0"

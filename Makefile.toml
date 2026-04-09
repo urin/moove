@@ -78,17 +78,12 @@ command = "cargo"
 args = ["clippy"]
 
 [tasks.update]
-dependencies = ["cargo-update", "cargo-upgrade"]
+dependencies = ["cargo-update"]
 
 [tasks.cargo-update]
 command = "cargo"
 args = ["update"]
 
-[tasks.cargo-upgrade]
-command = "cargo"
-args = ["upgrade"]
-
 [tasks.release]
 command = "cargo"
 args = ["release"]
-

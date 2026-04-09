@@ -606,22 +606,27 @@ pub fn should_relocate(src: &Path, dst_parent: &Path) -> bool {
 
 pub fn execute_remove(operation: &Operation, _args: &CommandLine) -> Result<()> {
     let path = &operation.src.abs;
-    if path.is_dir() {
-        std::fs::remove_dir_all(path).with_context(|| {
-            format!(
-                "Failed to remove {}",
-                path.to_string_lossy().yellow().underline()
-            )
-        })?;
-    } else {
-        std::fs::remove_file(path).with_context(|| {
-            format!(
-                "Failed to remove {}",
-                path.to_string_lossy().yellow().underline()
-            )
-        })?;
-    }
+    remove_path(path).with_context(|| {
+        format!(
+            "Failed to remove {}",
+            path.to_string_lossy().yellow().underline()
+        )
+    })?;
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn remove_path(path: &Path) -> std::io::Result<()> {
+    if path.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn remove_path(path: &Path) -> std::result::Result<(), trash::Error> {
+    trash::delete(path)
 }
 
 #[cfg(test)]
