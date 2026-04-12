@@ -47,6 +47,8 @@ Options:
   -c, --copy                       Copy without moving
   -u, --dry-run                    Dry-run
   -o, --oops                       Abort in case of collision (prompt as default)
+  -f, --force                      Overwrite existing files without prompting
+  -F, --force-dir                  Overwrite existing directories without prompting (implies --force)
   -q, --quiet                      No output to stdout/strerr even if error
   -h, --help                       Print help
   -V, --version                    Print version
@@ -58,6 +60,8 @@ Options:
 - If a line starts with `//`, the file and directory (and its contents) will be removed regardless of modification of the remaining part of the line.
 - Destination directories will be created automatically.
 - In case of line number change or collision, asks whether to re-edit or abort. Aborts without asking if `--oops` is specified.
+- With `--force`, an existing destination file (or symlink to a file) is overwritten without prompting. Errors if the destination is a directory or a symlink to a directory.
+- With `--force-dir`, an existing destination directory (or symlink to a directory) is also overwritten: on move, the destination is removed and replaced; on copy, the contents are merged. Implies `--force` for file destinations. Errors if the source is a symlink to a directory.
 
 ### Configuration 🎚
 
@@ -123,9 +127,7 @@ cargo make setup
 ## TODOs ✅
 
 - Package for various platforms
-- Overwrite option
 - Exclude .gitignore option
-- Move to trash instead of removing as the default
 - Logging
 - Recursive option
 - Maximum depth option

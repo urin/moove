@@ -42,6 +42,12 @@ pub struct CommandLine {
     /// Abort in case of collision (prompt as default)
     #[arg(short, long)]
     pub oops: bool,
+    /// Overwrite existing files without prompting (error if destination is a directory or symlink to directory)
+    #[arg(short, long)]
+    pub force: bool,
+    /// Overwrite existing directories without prompting; implies --force for files (error if source is a symlink to directory)
+    #[arg(short = 'F', long)]
+    pub force_dir: bool,
     /// No output to stdout/strerr even if error
     #[arg(short, long)]
     pub quiet: bool,
@@ -349,7 +355,7 @@ pub fn operations_from(sources: &[Source], args: &CommandLine) -> Result<Vec<Ope
                 },
             };
             if !removing {
-                if let Err(message) = is_operational(&operations, &new_operation) {
+                if let Err(message) = is_operational(&operations, &new_operation, args) {
                     if !args.oops {
                         println!("{}", message);
                         if prompt_redo()? {
@@ -391,7 +397,11 @@ pub fn prompt_redo() -> Result<bool> {
     }
 }
 
-pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Result<()> {
+pub fn is_operational(
+    operations: &[Operation],
+    new_operation: &Operation,
+    args: &CommandLine,
+) -> Result<()> {
     let src = &new_operation.src;
     let dst = &new_operation.dst;
     if dst.text.ends_with(std::path::MAIN_SEPARATOR)
@@ -418,10 +428,41 @@ pub fn is_operational(operations: &[Operation], new_operation: &Operation) -> Re
             dst.text.yellow().underline()
         );
     }
+    // --force / --force-dir: error if src is a symlink to a directory (unpredictable behavior with fs_extra)
+    if (args.force || args.force_dir) && src.path.is_symlink() && src.path.is_dir() {
+        anyhow::bail!(
+            "Source is a symlink to directory; cannot use --force/--force-dir. {}",
+            src.text.yellow().underline()
+        )
+    }
+    // --force: error if src is a directory
+    if args.force && !args.force_dir && src.meta.is_dir() {
+        anyhow::bail!(
+            "Source is a directory; cannot use --force. {}",
+            src.text.yellow().underline()
+        )
+    }
     if dst.path.exists() {
-        anyhow::bail!("Destination exists. {}", dst.text.yellow().underline())
+        if args.force_dir {
+            // --force-dir: allow overwrite of anything except symlink-to-dir on src (handled above)
+        } else if args.force {
+            // --force: error if dst is a directory or a symlink to a directory
+            if dst.path.is_dir() || (dst.path.is_symlink() && dst.path.is_dir()) {
+                anyhow::bail!(
+                    "Destination is a directory or symlink to directory; cannot overwrite with --force. {}",
+                    dst.text.yellow().underline()
+                )
+            }
+            // Regular file or symlink to file: allow overwrite (dst will be removed before the operation)
+        } else {
+            anyhow::bail!("Destination exists. {}", dst.text.yellow().underline())
+        }
     }
     if dst.path.ancestors().any(|a| {
+        // When --force or --force-dir is set, dst itself is allowed to be overwritten
+        if (args.force || args.force_dir) && a == dst.path {
+            return false;
+        }
         if !a.exists() {
             false
         } else if a.is_file() {
@@ -449,12 +490,18 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
     match o.kind {
         OperationKind::Move => {
             if !args.quiet && (args.verbose || args.dry_run) {
+                let overwrite = (args.force || args.force_dir) && o.dst.path.exists();
                 println!(
-                    "{} {}{}{}",
+                    "{} {}{}{}{}",
                     "Move".dimmed(),
                     o.src.text.dimmed().underline(),
                     " → ".dimmed(),
-                    o.dst.text.dimmed().underline()
+                    o.dst.text.dimmed().underline(),
+                    if overwrite {
+                        " (overwrite)".dimmed()
+                    } else {
+                        "".dimmed()
+                    }
                 );
             }
             if args.dry_run {
@@ -471,12 +518,18 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
         }
         OperationKind::Copy => {
             if !args.quiet && (args.verbose || args.dry_run) {
+                let overwrite = (args.force || args.force_dir) && o.dst.path.exists();
                 println!(
-                    "{} {}{}{}",
+                    "{} {}{}{}{}",
                     "Copy".dimmed(),
                     o.src.text.dimmed().underline(),
                     " → ".dimmed(),
-                    o.dst.text.dimmed().underline()
+                    o.dst.text.dimmed().underline(),
+                    if overwrite {
+                        " (overwrite)".dimmed()
+                    } else {
+                        "".dimmed()
+                    }
                 );
             }
             if args.dry_run {
@@ -510,6 +563,29 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
 pub fn execute_move_or_copy(operation: &Operation, args: &CommandLine) -> Result<()> {
     let Operation { kind, src, dst, .. } = operation;
     let moving = matches!(kind, OperationKind::Move);
+    // --force / --force-dir: remove the existing destination before moving/copying
+    if (args.force || args.force_dir) && dst.path.exists() {
+        if args.force_dir && dst.path.is_dir() {
+            if moving {
+                // move: remove dst directory entirely, then move src into place
+                std::fs::remove_dir_all(&dst.path).with_context(|| {
+                    format!(
+                        "Failed to remove existing destination directory {}",
+                        dst.text.yellow().underline()
+                    )
+                })?;
+            }
+            // copy: leave dst directory in place and let fs_extra merge with overwrite=true
+        } else {
+            // dst is a file or a symlink (to file or to directory): remove it
+            std::fs::remove_file(&dst.path).with_context(|| {
+                format!(
+                    "Failed to remove existing destination {}",
+                    dst.text.yellow().underline()
+                )
+            })?;
+        }
+    }
     let dst_parent = create_dir(dst, args)?;
     if should_relocate(&src.path, &dst_parent) {
         if !args.quiet && args.verbose {
@@ -531,10 +607,15 @@ pub fn execute_move_or_copy(operation: &Operation, args: &CommandLine) -> Result
                 },
             )?;
         } else {
-            fs_extra::copy_items(&[&src.path], &dst_parent, &CopyOptions::default()).with_context(
+            let copy_options = if args.force_dir {
+                CopyOptions { overwrite: true, ..CopyOptions::default() }
+            } else {
+                CopyOptions::default()
+            };
+            fs_extra::copy_items(&[&src.path], &dst_parent, &copy_options).with_context(
                 || {
                     format!(
-                        "Failed to move {} to {}",
+                        "Failed to copy {} to {}",
                         src.text.yellow().underline(),
                         dst_parent.to_string_lossy().yellow().underline()
                     )
@@ -549,23 +630,64 @@ pub fn execute_move_or_copy(operation: &Operation, args: &CommandLine) -> Result
     if src_basename != dst_basename {
         let from = &dst_parent.join(src_basename);
         let to = &dst_parent.join(dst_basename);
-        if !args.quiet && args.verbose {
-            println!(
-                "{} {}{}{}",
-                "Renaming".dimmed(),
-                from.to_string_lossy().dimmed().underline(),
-                " → ".dimmed(),
-                to.to_string_lossy().dimmed().underline()
-            );
+        // --force-dir copy merge: dst (to) still exists as a non-empty directory,
+        // so rename would fail on Windows. Instead, merge from into to using
+        // fs_extra::dir::copy with overwrite, then remove from.
+        if args.force_dir && !moving && to.is_dir() {
+            if !args.quiet && args.verbose {
+                println!(
+                    "{} {}{}{}",
+                    "Merging".dimmed(),
+                    from.to_string_lossy().dimmed().underline(),
+                    " → ".dimmed(),
+                    to.to_string_lossy().dimmed().underline()
+                );
+            }
+            fs_extra::dir::copy(
+                from,
+                to,
+                &fs_extra::dir::CopyOptions {
+                    overwrite: true,
+                    content_only: true,
+                    ..fs_extra::dir::CopyOptions::default()
+                },
+            ).with_context(|| {
+                format!(
+                    "Failed to merge {} into {}",
+                    from.to_string_lossy().yellow().underline(),
+                    to.to_string_lossy().yellow().underline()
+                )
+            })?;
+            // Remove the intermediate copy only when it was created by relocation
+            // (i.e. from != src.path). When should_relocate was false, from IS src.path
+            // and must not be deleted on copy.
+            if from != &src.path {
+                std::fs::remove_dir_all(from).with_context(|| {
+                    format!(
+                        "Failed to remove temporary directory {}",
+                        from.to_string_lossy().yellow().underline()
+                    )
+                })?;
+            }
+        } else {
+            if !args.quiet && args.verbose {
+                println!(
+                    "{} {}{}{}",
+                    "Renaming".dimmed(),
+                    from.to_string_lossy().dimmed().underline(),
+                    " → ".dimmed(),
+                    to.to_string_lossy().dimmed().underline()
+                );
+            }
+            // Destination is never over-written, ensured when the operation was made.
+            std::fs::rename(from, to).with_context(|| {
+                format!(
+                    "Failed to rename {} to {}",
+                    from.to_string_lossy().yellow().underline(),
+                    to.to_string_lossy().yellow().underline()
+                )
+            })?;
         }
-        // Destination is never over-written, ensured when the operation was made.
-        std::fs::rename(from, to).with_context(|| {
-            format!(
-                "Failed to rename {} to {}",
-                from.to_string_lossy().yellow().underline(),
-                to.to_string_lossy().yellow().underline()
-            )
-        })?;
     }
     Ok(())
 }
@@ -819,19 +941,19 @@ mod lib {
         let setup = &Setup::init("operate_normally")?;
         let mut operations = Vec::new();
         let new_operation = setup.operation_from("1/11/11.txt", "1/12/moved-11.txt");
-        is_operational(&operations, &new_operation)?;
+        is_operational(&operations, &new_operation, &setup.args)?;
         operations.push(new_operation);
         let new_operation = setup.operation_from("1/12/12.txt", "1/11/moved-12.txt");
-        is_operational(&operations, &new_operation)?;
+        is_operational(&operations, &new_operation, &setup.args)?;
         operations.push(new_operation);
         let new_operation = setup.operation_from("1/1.txt", "1/11/moved-1.txt");
-        is_operational(&operations, &new_operation)?;
+        is_operational(&operations, &new_operation, &setup.args)?;
         operations.push(new_operation);
         let new_operation = setup.operation_from("2/21/211", "moved-211");
-        is_operational(&operations, &new_operation)?;
+        is_operational(&operations, &new_operation, &setup.args)?;
         operations.push(new_operation);
         let new_operation = setup.operation_from("2/22", "moved-211/moved-22");
-        is_operational(&operations, &new_operation)?;
+        is_operational(&operations, &new_operation, &setup.args)?;
         operations.push(new_operation);
         for o in operations.iter() {
             execute_operation(o, &setup.args)?;
@@ -857,7 +979,9 @@ mod lib {
         ]
         .iter()
         .for_each(|(src, dst)| {
-            assert!(is_operational(&operations, &setup.operation_from(src, dst)).is_err());
+            assert!(
+                is_operational(&operations, &setup.operation_from(src, dst), &setup.args).is_err()
+            );
         });
         Ok(())
     }
@@ -920,6 +1044,122 @@ mod lib {
         execute_operation(&operation, &setup.args)?;
         assert!(operation.src.path.is_dir());
         assert!(!operation.dst.path.is_dir());
+        Ok(())
+    }
+
+
+    // --force-dir: overwrites an existing directory on move (dst is removed and replaced)
+    #[test]
+    fn force_dir_move_overwrites_existing_directory() -> Result<()> {
+        let mut setup = Setup::init("force_dir_move_overwrites_existing_directory")?;
+        setup.args.force_dir = true;
+        // src: 1/11 (directory with 11.txt), dst: 1/12 (existing directory with 12.txt)
+        let operation = setup.operation_from("1/11", "1/12");
+        is_operational(&[], &operation, &setup.args)?;
+        execute_move_or_copy(&operation, &setup.args)?;
+        // dst now contains src's contents (11.txt), 12.txt is gone
+        assert!(setup.sandbox.join("1/12").is_dir());
+        assert!(setup.sandbox.join("1/12/11.txt").is_file());
+        assert!(!setup.sandbox.join("1/12/12.txt").exists());
+        assert!(!setup.sandbox.join("1/11").exists());
+        Ok(())
+    }
+
+    // --force-dir: merges into an existing directory on copy
+    #[test]
+    fn force_dir_copy_merges_into_existing_directory() -> Result<()> {
+        let mut setup = Setup::init("force_dir_copy_merges_into_existing_directory")?;
+        setup.args.force_dir = true;
+        setup.args.copy = true;
+        // src: 1/11 (directory with 11.txt), dst: 1/12 (existing directory with 12.txt)
+        let base = setup.operation_from("1/11", "1/12");
+        let operation = Operation {
+            kind: OperationKind::Copy,
+            src: base.src,
+            dst: base.dst,
+        };
+        is_operational(&[], &operation, &setup.args)?;
+        execute_move_or_copy(&operation, &setup.args)?;
+        // dst retains 12.txt and gains 11.txt (merge)
+        assert!(setup.sandbox.join("1/12/12.txt").is_file());
+        assert!(setup.sandbox.join("1/12/11.txt").is_file());
+        // src is preserved on copy
+        assert!(setup.sandbox.join("1/11").is_dir());
+        Ok(())
+    }
+
+    // --force-dir: also overwrites existing files (implies --force)
+    #[test]
+    fn force_dir_move_overwrites_existing_file() -> Result<()> {
+        let mut setup = Setup::init("force_dir_move_overwrites_existing_file")?;
+        setup.args.force_dir = true;
+        // src: 1/11/11.txt (file), dst: 1/12/12.txt (existing file)
+        let operation = setup.operation_from("1/11/11.txt", "1/12/12.txt");
+        is_operational(&[], &operation, &setup.args)?;
+        execute_move_or_copy(&operation, &setup.args)?;
+        assert!(operation.dst.path.is_file());
+        assert!(!operation.src.path.exists());
+        Ok(())
+    }
+
+    // --force-dir: error if src is a directory without --force-dir
+    #[test]
+    fn without_force_dir_existing_dst_directory_is_error() -> Result<()> {
+        let setup = Setup::init("without_force_dir_existing_dst_directory_is_error")?;
+        // src: 1/11 (directory), dst: 1/12 (existing directory)
+        let operation = setup.operation_from("1/11", "1/12");
+        assert!(is_operational(&[], &operation, &setup.args).is_err());
+        Ok(())
+    }
+
+    // --force-dir: error if src is a symlink to a directory
+    #[test]
+    #[cfg(target_family = "unix")]
+    fn force_dir_src_is_symlink_to_directory_is_error() -> Result<()> {
+        let mut setup = Setup::init("force_dir_src_is_symlink_to_directory_is_error")?;
+        setup.args.force_dir = true;
+        // create a symlink pointing to 1/11 (a directory)
+        let link = setup.sandbox.join("link_to_src_dir");
+        std::os::unix::fs::symlink(setup.sandbox.join("1/11"), &link)?;
+        assert!(link.is_symlink() && link.is_dir());
+        let operation = Operation {
+            kind: OperationKind::Move,
+            src: Source {
+                text: link.to_string_lossy().to_string(),
+                path: link.clone(),
+                abs: link.normalize().unwrap().into_path_buf(),
+                meta: link.symlink_metadata().unwrap(),
+            },
+            dst: setup.destination_from("1/12"),
+        };
+        assert!(is_operational(&[], &operation, &setup.args).is_err());
+        Ok(())
+    }
+
+    // --force-dir: overwrites a symlink to a directory (symlink is removed, not the target)
+    #[test]
+    #[cfg(target_family = "unix")]
+    fn force_dir_dst_is_symlink_to_directory_is_replaced() -> Result<()> {
+        let mut setup = Setup::init("force_dir_dst_is_symlink_to_directory_is_replaced")?;
+        setup.args.force_dir = true;
+        // create a symlink pointing to 1/12 (a directory)
+        let link = setup.sandbox.join("link_to_dst_dir");
+        std::os::unix::fs::symlink(setup.sandbox.join("1/12"), &link)?;
+        assert!(link.is_symlink() && link.is_dir());
+        let operation = Operation {
+            kind: OperationKind::Move,
+            src: setup.source_from("1/11"),
+            dst: Destination {
+                text: link.to_string_lossy().to_string(),
+                path: link.clone(),
+            },
+        };
+        is_operational(&[], &operation, &setup.args)?;
+        execute_move_or_copy(&operation, &setup.args)?;
+        // link is replaced by the moved directory; original target (1/12) is untouched
+        assert!(link.is_dir() && !link.is_symlink());
+        assert!(setup.sandbox.join("1/12").is_dir());
+        assert!(!setup.sandbox.join("1/11").exists());
         Ok(())
     }
 }
