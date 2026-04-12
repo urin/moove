@@ -87,8 +87,7 @@ trait PathUtilExt {
 impl PathUtilExt for Path {
     fn is_identical(&self, other: &Path) -> bool {
         if cfg!(target_family = "windows") {
-            self == other
-                || self.as_os_str().to_ascii_lowercase() == other.as_os_str().to_ascii_lowercase()
+            self == other || self.as_os_str().eq_ignore_ascii_case(other.as_os_str())
         } else {
             self == other
         }
@@ -279,7 +278,7 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
     Ok(())
 }
 
-pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<Operation>> {
+pub fn operations_from(sources: &[Source], args: &CommandLine) -> Result<Vec<Operation>> {
     let mut operations = Vec::new();
     let mut text = sources
         .iter()
@@ -369,6 +368,8 @@ pub fn operations_from(sources: &Vec<Source>, args: &CommandLine) -> Result<Vec<
 }
 
 pub fn prompt_redo() -> Result<bool> {
+    let re_abort = Regex::new(r"^a(bort)?$")?;
+    let re_edit = Regex::new(r"^e(dit)?$")?;
     loop {
         print!(
             "{}{} or {}{}? > ",
@@ -381,10 +382,10 @@ pub fn prompt_redo() -> Result<bool> {
         let mut ans = String::new();
         std::io::stdin().read_line(&mut ans)?;
         let ans = ans.trim().to_ascii_lowercase();
-        if Regex::new(r"^a(bort)?$")?.is_match(&ans) {
+        if re_abort.is_match(&ans) {
             return Ok(false);
         }
-        if ans.is_empty() || Regex::new(r"^e(dit)?$")?.is_match(&ans) {
+        if ans.is_empty() || re_edit.is_match(&ans) {
             return Ok(true);
         }
     }
