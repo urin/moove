@@ -5,6 +5,10 @@ alias = "build-all"
 dependencies = ["doc", "build", "build-platforms"]
 run_task = "dist"
 
+[tasks.release-assets]
+dependencies = ["build-platforms"]
+run_task = "dist"
+
 [tasks.doc]
 command = "cargo"
 args = ["doc", "--bins", "--no-deps"]
@@ -17,11 +21,9 @@ args = ["build", "--release"]
 command = "cargo"
 args = [
     "zigbuild", "--release",
-    "--target", "aarch64-apple-darwin",
     "--target", "aarch64-unknown-linux-musl",
-    "--target", "x86_64-apple-darwin",
-    "--target", "x86_64-pc-windows-gnu",
     "--target", "x86_64-unknown-linux-musl",
+    "--target", "x86_64-pc-windows-gnu",
 ]
 
 [tasks.build-linux]
@@ -30,14 +32,6 @@ args = [
     "zigbuild", "--release",
     "--target", "aarch64-unknown-linux-musl",
     "--target", "x86_64-unknown-linux-musl",
-]
-
-[tasks.build-apple]
-command = "cargo"
-args = [
-    "zigbuild", "--release",
-    "--target", "aarch64-apple-darwin",
-    "--target", "x86_64-apple-darwin",
 ]
 
 [tasks.build-windows]
@@ -50,22 +44,19 @@ args = [
 [tasks.dist]
 script_runner = "@shell"
 script = '''
-tar caf dist/moove-apple-aarch64.tar.gz  -C target/aarch64-apple-darwin/release       moove 
+mkdir -p dist
 tar caf dist/moove-linux-aarch64.tar.gz  -C target/aarch64-unknown-linux-musl/release moove 
-tar caf dist/moove-apple-x86_64.tar.gz   -C target/x86_64-apple-darwin/release        moove       
 tar caf dist/moove-linux-x86_64.tar.gz   -C target/x86_64-unknown-linux-musl/release  moove  
-tar caf dist/moove-windows-x86_64.tar.gz -C target/x86_64-pc-windows-gnu/release      moove.exe 
+zip -j dist/moove-windows-x86_64.zip target/x86_64-pc-windows-gnu/release/moove.exe
 '''
 
 [tasks.setup]
 command = "rustup"
 args = [
     "target", "add",
-    "aarch64-apple-darwin",
     "aarch64-unknown-linux-musl",
-    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-musl",
     "x86_64-pc-windows-gnu",
-    "x86_64-unknown-linux-musl"
 ]
 
 [tasks.test]

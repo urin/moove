@@ -76,11 +76,9 @@ Options:
 
 ### Pre-compiled binaries
 
-- [moove-apple-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-aarch64.tar.gz)
-- [moove-apple-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-apple-x86_64.tar.gz)
 - [moove-linux-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-aarch64.tar.gz)
 - [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-x86_64.tar.gz)
-- [moove-windows-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.tar.gz)
+- [moove-windows-x86_64.zip](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.zip)
 
 ### Install by cargo
 
@@ -122,7 +120,8 @@ cargo make setup
   ```
   Pre-compiled binaries will be in the directory `dist`.
 
-  ⚠  Binaries do not have execute permission in case of building on windows.
+> [!TIP]
+> Pre-compiled binaries are automatically added as release assets on GitHub when a release is created.
 
 ## TODOs ✅
 

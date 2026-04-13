@@ -1,0 +1,65 @@
+name: release-assets
+
+on:
+  release:
+    types:
+    - published
+
+permissions:
+  contents: write
+
+jobs:
+  release-assets:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Verify release version
+      run: |
+        cargo_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
+        tag_version="${{ github.event.release.tag_name }}"
+        tag_version="${tag_version#v}"
+        test "$cargo_version" = "$tag_version"
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: aarch64-unknown-linux-musl,x86_64-pc-windows-gnu,x86_64-unknown-linux-musl
+
+    - name: Setup Zig
+      uses: mlugg/setup-zig@v2
+      with:
+        version: latest
+
+    - name: Install cargo-make
+      run: cargo install cargo-make
+
+    - name: Install cargo-zigbuild
+      run: cargo install cargo-zigbuild
+
+    - name: Build release binaries
+      run: cargo make release-assets
+
+    - name: Generate Windows release assets
+      run: |
+        chmod +x ./scripts/generate-windows-release-assets.sh
+        ./scripts/generate-windows-release-assets.sh \
+          target/x86_64-pc-windows-gnu/release/moove.exe \
+          "${{ github.event.release.tag_name }}" \
+          "${{ github.repository }}" \
+          dist
+
+    - name: Upload assets to release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.release.tag_name }}
+        files: |
+          dist/moove-linux-aarch64.tar.gz
+          dist/moove-linux-x86_64.tar.gz
+          dist/moove-windows-x86_64.zip
+          dist/moove-windows-x86_64.zip.sha256
+          dist/Urin.moove.yaml
+          dist/Urin.moove.installer.yaml
+          dist/Urin.moove.locale.en-US.yaml
+        fail_on_unmatched_files: true
