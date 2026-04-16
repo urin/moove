@@ -738,16 +738,6 @@ pub fn execute_remove(operation: &Operation, _args: &CommandLine) -> Result<()> 
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
-fn remove_path(path: &Path) -> std::io::Result<()> {
-    if path.is_dir() {
-        std::fs::remove_dir_all(path)
-    } else {
-        std::fs::remove_file(path)
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
 fn remove_path(path: &Path) -> std::result::Result<(), trash::Error> {
     trash::delete(path)
 }

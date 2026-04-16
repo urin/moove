@@ -2,12 +2,7 @@
 alias = "build-all"
 
 [tasks.build-all]
-dependencies = ["doc", "build", "build-platforms"]
-run_task = "dist"
-
-[tasks.release-assets]
-dependencies = ["build-platforms"]
-run_task = "dist"
+dependencies = ["doc", "build"]
 
 [tasks.doc]
 command = "cargo"
@@ -17,47 +12,6 @@ args = ["doc", "--bins", "--no-deps"]
 command = "cargo"
 args = ["build", "--release"]
 
-[tasks.build-platforms]
-command = "cargo"
-args = [
-    "zigbuild", "--release",
-    "--target", "aarch64-unknown-linux-musl",
-    "--target", "x86_64-unknown-linux-musl",
-    "--target", "x86_64-pc-windows-gnu",
-]
-
-[tasks.build-linux]
-command = "cargo"
-args = [
-    "zigbuild", "--release",
-    "--target", "aarch64-unknown-linux-musl",
-    "--target", "x86_64-unknown-linux-musl",
-]
-
-[tasks.build-windows]
-command = "cargo"
-args = [
-    "zigbuild", "--release",
-    "--target", "x86_64-pc-windows-gnu",
-]
-
-[tasks.dist]
-script_runner = "@shell"
-script = '''
-mkdir -p dist
-tar caf dist/moove-linux-aarch64.tar.gz  -C target/aarch64-unknown-linux-musl/release moove 
-tar caf dist/moove-linux-x86_64.tar.gz   -C target/x86_64-unknown-linux-musl/release  moove  
-zip -j dist/moove-windows-x86_64.zip target/x86_64-pc-windows-gnu/release/moove.exe
-'''
-
-[tasks.setup]
-command = "rustup"
-args = [
-    "target", "add",
-    "aarch64-unknown-linux-musl",
-    "x86_64-unknown-linux-musl",
-    "x86_64-pc-windows-gnu",
-]
 
 [tasks.test]
 command = "cargo"

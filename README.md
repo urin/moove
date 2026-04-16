@@ -19,7 +19,6 @@
 - Displays file and directory names like [`ls`](https://man7.org/linux/man-pages/man1/ls.1.html) in a text editor,
   and renames or moves them exactly as you edit them.
 - A pre-compiled single executable without any dependencies.
-  Thanks 💖 to [Zig](https://ziglang.org/) and [musl libc](https://musl.libc.org/).
 - Supports Linux, Mac and Windows.
 - Supports wildcard patterns, including Windows.
 
@@ -76,9 +75,8 @@ Options:
 
 ### Pre-compiled binaries
 
-- [moove-linux-aarch64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-aarch64.tar.gz)
-- [moove-linux-x86_64.tar.gz](https://github.com/urin/moove/releases/latest/download/moove-linux-x86_64.tar.gz)
-- [moove-windows-x86_64.zip](https://github.com/urin/moove/releases/latest/download/moove-windows-x86_64.zip)
+- Download the archive for your platform from the [latest release][url-latest-release].
+- Release assets are built automatically for Linux, macOS, and Windows.
 
 ### Install by cargo
 
@@ -96,16 +94,7 @@ cargo install moove
 Followings are used to build.
 
 - [cargo-make](https://crates.io/crates/cargo-make/) as the task runner
-- [cargo-zigbuild](https://crates.io/crates/cargo-zigbuild) to build for multiple platforms
-
-### Setup development environment 🪜
-
-1. Install [Zig](https://ziglang.org/) according to [the Zig document](https://ziglang.org/learn/getting-started/#installing-zig).
-2. Run following commands.
-```sh
-cargo install cargo-make
-cargo make setup
-```
+- [cargo-dist](https://github.com/axodotdev/cargo-dist) for release packaging and GitHub Releases
 
 ### Testing and Building 🔨
 
@@ -118,10 +107,7 @@ cargo make setup
   ```txt
   cargo make
   ```
-  Pre-compiled binaries will be in the directory `dist`.
-
-> [!TIP]
-> Pre-compiled binaries are automatically added as release assets on GitHub when a release is created.
+  The binary for your local environment will be built in `target/release`.
 
 ## TODOs ✅
 
