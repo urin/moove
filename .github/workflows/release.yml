@@ -45,6 +45,22 @@ on:
       - '**[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
+  # Run cargo test on all platforms before allowing any release artifacts to be built.
+  # All three matrix legs must pass; if any fails the build and release jobs are skipped.
+  test:
+    name: cargo test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Run tests
+        run: cargo test --locked
+
   # Run 'dist plan' (or host) to determine what tasks we need to do
   plan:
     runs-on: "ubuntu-22.04"
@@ -92,6 +108,7 @@ jobs:
     name: build-local-artifacts (${{ join(matrix.targets, ', ') }})
     # Let the initial task tell us to not run (currently very blunt)
     needs:
+      - test
       - plan
     if: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
     strategy:
@@ -168,6 +185,7 @@ jobs:
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:
     needs:
+      - test
       - plan
       - build-local-artifacts
     runs-on: "ubuntu-22.04"
