@@ -9,7 +9,6 @@
 [🎨 Features](#features-) \|
 [🚀 Usage](#usage-) \|
 [📥 Getting started](#getting-started-) \|
-[💙 Contributing](#contributing-) \|
 [🌏 License](#license-)
 
 ![Demo](https://raw.githubusercontent.com/urin/moove/main/README-demo.webp)
@@ -78,36 +77,23 @@ Options:
 - Download the archive for your platform from the [latest release][url-latest-release].
 - Release assets are built automatically for Linux, macOS, and Windows.
 
-### Install by cargo
+### Installation
 
-```sh
-cargo install moove
-```
+- Windows
+  ```powershell
+  winget install moove
+  ```
+
+- cargo
+  ```sh
+  cargo install moove
+  ```
 
 ## Alternatives
 
 - [laurent22/massren](https://github.com/laurent22/massren)
 - [itchyny/mmv](https://github.com/itchyny/mmv)
 
-## Contributing 💙
-
-Followings are used to build.
-
-- [cargo-make](https://crates.io/crates/cargo-make/) as the task runner
-- [cargo-dist](https://github.com/axodotdev/cargo-dist) for release packaging and GitHub Releases
-
-### Testing and Building 🔨
-
-- To test,
-  ```txt
-  cargo make test
-  ```
-
-- To build binaries for release,
-  ```txt
-  cargo make
-  ```
-  The binary for your local environment will be built in `target/release`.
 
 ## TODOs ✅
 
