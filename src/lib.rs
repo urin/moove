@@ -251,7 +251,7 @@ pub fn put_source(sources: &mut Vec<Source>, path: &Path, args: &CommandLine) ->
         .with_context(|| {
             format!(
                 "Failed to convert path to UTF-8. {}",
-                path.to_string_lossy().to_string().yellow().underline()
+                path.to_string_lossy().yellow().underline()
             )
         })?
         .trim_end_matches(SEPARATORS)
@@ -374,8 +374,6 @@ pub fn operations_from(sources: &[Source], args: &CommandLine) -> Result<Vec<Ope
 }
 
 pub fn prompt_redo() -> Result<bool> {
-    let re_abort = Regex::new(r"^a(bort)?$")?;
-    let re_edit = Regex::new(r"^e(dit)?$")?;
     loop {
         print!(
             "{}{} or {}{}? > ",
@@ -388,10 +386,10 @@ pub fn prompt_redo() -> Result<bool> {
         let mut ans = String::new();
         std::io::stdin().read_line(&mut ans)?;
         let ans = ans.trim().to_ascii_lowercase();
-        if re_abort.is_match(&ans) {
+        if matches!(ans.as_str(), "a" | "abort") {
             return Ok(false);
         }
-        if ans.is_empty() || re_edit.is_match(&ans) {
+        if ans.is_empty() || matches!(ans.as_str(), "e" | "edit") {
             return Ok(true);
         }
     }
@@ -447,7 +445,8 @@ pub fn is_operational(
             // --force-dir: allow overwrite of anything except symlink-to-dir on src (handled above)
         } else if args.force {
             // --force: error if dst is a directory or a symlink to a directory
-            if dst.path.is_dir() || (dst.path.is_symlink() && dst.path.is_dir()) {
+            // is_dir() already follows symlinks, so the symlink check is redundant.
+            if dst.path.is_dir() {
                 anyhow::bail!(
                     "Destination is a directory or symlink to directory; cannot overwrite with --force. {}",
                     dst.text.yellow().underline()
@@ -488,62 +487,6 @@ pub fn is_operational(
 
 pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
     match o.kind {
-        OperationKind::Move => {
-            if !args.quiet && (args.verbose || args.dry_run) {
-                let overwrite = (args.force || args.force_dir) && o.dst.path.exists();
-                println!(
-                    "{} {}{}{}{}",
-                    "Move".dimmed(),
-                    o.src.text.dimmed().underline(),
-                    " → ".dimmed(),
-                    o.dst.text.dimmed().underline(),
-                    if overwrite {
-                        " (overwrite)".dimmed()
-                    } else {
-                        "".dimmed()
-                    }
-                );
-            }
-            if args.dry_run {
-                return Ok(());
-            }
-            execute_move_or_copy(o, args)?;
-            if !args.quiet {
-                println!(
-                    "{} → {}",
-                    o.src.text.green().underline(),
-                    o.dst.text.green().underline()
-                );
-            }
-        }
-        OperationKind::Copy => {
-            if !args.quiet && (args.verbose || args.dry_run) {
-                let overwrite = (args.force || args.force_dir) && o.dst.path.exists();
-                println!(
-                    "{} {}{}{}{}",
-                    "Copy".dimmed(),
-                    o.src.text.dimmed().underline(),
-                    " → ".dimmed(),
-                    o.dst.text.dimmed().underline(),
-                    if overwrite {
-                        " (overwrite)".dimmed()
-                    } else {
-                        "".dimmed()
-                    }
-                );
-            }
-            if args.dry_run {
-                return Ok(());
-            }
-            execute_move_or_copy(o, args)?;
-            if !args.quiet {
-                println!(
-                    "{} → {}",
-                    o.src.text.green().underline(),
-                    o.dst.text.green().underline()
-                );
-            }
-        }
         OperationKind::Remove => {
             if !args.quiet && (args.verbose || args.dry_run) {
                 println!("{} {}", "Remove".dimmed(), o.src.text.dimmed().underline());
@@ -556,7 +499,33 @@ pub fn execute_operation(o: &Operation, args: &CommandLine) -> Result<()> {
                 println!("Removed {}", o.src.text.green().underline());
             }
         }
-    };
+        // Move and Copy share identical flow; only the label and execute_move_or_copy internals differ.
+        _ => {
+            let label = if matches!(o.kind, OperationKind::Move) { "Move" } else { "Copy" };
+            if !args.quiet && (args.verbose || args.dry_run) {
+                let overwrite = (args.force || args.force_dir) && o.dst.path.exists();
+                println!(
+                    "{} {}{}{}{}",
+                    label.dimmed(),
+                    o.src.text.dimmed().underline(),
+                    " → ".dimmed(),
+                    o.dst.text.dimmed().underline(),
+                    if overwrite { " (overwrite)".dimmed() } else { "".dimmed() }
+                );
+            }
+            if args.dry_run {
+                return Ok(());
+            }
+            execute_move_or_copy(o, args)?;
+            if !args.quiet {
+                println!(
+                    "{} → {}",
+                    o.src.text.green().underline(),
+                    o.dst.text.green().underline()
+                );
+            }
+        }
+    }
     Ok(())
 }
 
