@@ -1,0 +1,43 @@
+# Verification workflow for Homebrew Core PR.
+# Triggered on version tag push (e.g. v0.4.2).
+# Runs cargo test, brew audit --strict --new, brew install --build-from-source,
+# and brew test on macOS to confirm the Formula is ready for submission to homebrew-core.
+#
+# NOTE: Remove or disable this workflow after the PR is merged.
+name: Homebrew Formula Test
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]*'
+
+jobs:
+  homebrew-test:
+    name: Test Formula on macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      # Create a temporary local tap, copy the formula into it, then install/audit/test.
+      # Homebrew does not allow installing formulae directly from a file path.
+      - name: Install Formula from source
+        run: |
+          brew tap-new local/moove
+          cp packaging/homebrew/Formula/m/moove.rb $(brew --repository local/moove)/Formula/moove.rb
+          brew install --build-from-source local/moove/moove
+
+      # Run the same audit checks that homebrew-core CI enforces for new formulae.
+      # --strict enables all style rules; --online checks crate registry and URLs.
+      - name: Audit Formula (strict + new-formula checks)
+        run: |
+          brew audit --strict --online --new local/moove/moove
+
+      # Run the test do block defined in the Formula.
+      - name: Test installed binary
+        run: |
+          brew test local/moove/moove
