@@ -75,13 +75,17 @@ Options:
 ### Pre-compiled binaries
 
 - Download the archive for your platform from the [latest release][url-latest-release].
-- Release assets are built automatically for Linux, macOS, and Windows.
 
 ### Installation
 
 - Windows
   ```powershell
   winget install moove
+  ```
+
+- macOS (Homebrew)
+  ```sh
+  brew install urin/moove/moove
   ```
 
 - cargo
