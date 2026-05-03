@@ -109,6 +109,10 @@ jobs:
       matrix: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix }}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container && matrix.container.image || null }}
+    permissions:
+      id-token: write    # required to mint the OIDC token for Sigstore signing
+      attestations: write # required to persist the attestation
+      contents: read     # required for checkout
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/${{ join(matrix.targets, '-') }}-dist-manifest.json
@@ -334,6 +338,41 @@ jobs:
           git add Formula/
           git commit -m "Update formula for moove ${{ needs.plan.outputs.tag }}" || echo "Nothing to commit"
           git push
+
+  # Submit a build to Fedora COPR for the RPM package.
+  # Targets: Fedora 41, 42, Rawhide + EPEL 9, 10 (x86_64 and aarch64).
+  # Required secrets: COPR_LOGIN, COPR_USERNAME, COPR_TOKEN (from copr.fedorainfracloud.org/api).
+  publish-copr:
+    needs:
+      - plan
+      - host
+    if: ${{ always() && needs.host.result == 'success' && !fromJson(needs.plan.outputs.val).announcement_is_prerelease }}
+    runs-on: "ubuntu-22.04"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install copr-cli
+        run: pip install copr-cli --break-system-packages
+      - name: Configure copr-cli
+        run: |
+          mkdir -p ~/.config
+          cat > ~/.config/copr <<EOF
+          [copr-cli]
+          login = ${{ secrets.COPR_LOGIN }}
+          username = ${{ secrets.COPR_USERNAME }}
+          token = ${{ secrets.COPR_TOKEN }}
+          copr_url = https://copr.fedorainfracloud.org
+          EOF
+      - name: Submit build to COPR
+        run: |
+          copr-cli buildscm \
+            --clone-url https://github.com/urin/moove \
+            --commit ${{ needs.plan.outputs.tag }} \
+            --spec packaging/rpm/moove.spec \
+            --type git \
+            --nowait \
+            urin/moove
 
   # Publish the Windows archive to the WinGet package repository.
   publish-winget:
