@@ -30,9 +30,10 @@ windows-archive = ".zip"
 
 [package.metadata.release]
 tag-name = "v{{version}}"
-pre-release-commit-message = "Release v{{version}}"
+pre-release-commit-message = "chore: 🔧 v{{version}}"
 push = false
 publish = false
+pre-release-hook = ["cargo", "run", "--manifest-path", "xtask/Cargo.toml", "--", "update-rpm-changelog"]
 pre-release-replacements = [
     { file = "packaging/rpm/moove.spec", search = "^Version:\\s+.*$", replace = "Version:        {{version}}", exactly = 1 },
 ]
