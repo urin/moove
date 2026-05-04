@@ -3,6 +3,8 @@
 # without overwriting these hand-maintained steps.
 
 name: Release Follow-up
+permissions: {}
+
 on:
   workflow_run:
     workflows: ["Release"]
@@ -13,6 +15,9 @@ jobs:
   check:
     runs-on: "ubuntu-22.04"
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: read
     outputs:
       tag: ${{ steps.info.outputs.tag }}
       is_prerelease: ${{ steps.info.outputs.is_prerelease }}
@@ -37,15 +42,17 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.is_prerelease == 'false' }}
     runs-on: "ubuntu-22.04"
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.check.outputs.tag }}
     steps:
       - name: Delete internal release assets
         shell: bash
         run: |
-          tag="${{ needs.check.outputs.tag }}"
           for asset in dist-manifest.json moove.rb sha256.sum; do
-            gh release delete-asset "$tag" "$asset" --repo urin/moove --yes
+            gh release delete-asset "$TAG" "$asset" --repo urin/moove --yes
           done
 
   # Push the generated Homebrew formula to urin/homebrew-moove tap repository.
@@ -54,6 +61,11 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.is_prerelease == 'false' }}
     runs-on: "ubuntu-22.04"
+    permissions:
+      actions: read
+      contents: read
+    env:
+      TAG: ${{ needs.check.outputs.tag }}
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v6
@@ -74,7 +86,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/
-          git commit -m "Update formula for moove ${{ needs.check.outputs.tag }}" || echo "Nothing to commit"
+          git commit -m "Update formula for moove $TAG" || echo "Nothing to commit"
           git push
 
   # Publish the Windows archive to the WinGet package repository via wingetcreate.
@@ -82,17 +94,29 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.is_prerelease == 'false' }}
     runs-on: windows-latest
+    permissions:
+      contents: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.check.outputs.tag }}
     steps:
       - name: Publish to WinGet
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
         shell: pwsh
         run: |
-          $tag = "${{ needs.check.outputs.tag }}"
-          $version = $tag.TrimStart('v')
-          $url = (gh release view $tag --repo urin/moove --json assets --jq '[.assets[] | select(.name | endswith(".zip")) | .browserDownloadUrl][0]')
+          $version = $env:TAG.TrimStart('v')
+          Write-Host "Fetching assets for tag: $env:TAG"
+          $assets = gh release view $env:TAG --repo urin/moove --json assets -q '.assets[].name'
+          Write-Host "Available assets: $assets"
+          $assetName = (gh release view $env:TAG --repo urin/moove --json assets --jq '[.assets[] | select(.name | test("\\.zip$")) | .name][0]')
+          Write-Host "Selected asset: $assetName"
+          if (-not $assetName -or $assetName -eq "null") {
+            Write-Host "No .zip asset found. Exiting."
+            exit 1
+          }
+          $url = "https://github.com/urin/moove/releases/download/$([uri]::EscapeDataString($env:TAG))/$([uri]::EscapeDataString($assetName))"
+          Write-Host "Selected URL: $url"
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
           .\wingetcreate.exe update Urin.moove --version $version --urls $url --token $env:WINGET_TOKEN --submit
 

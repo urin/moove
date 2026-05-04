@@ -1,5 +1,5 @@
 Name:           moove
-Version:        0.4.4
+Version:        0.4.5
 Release:        1%{?dist}
 Summary:        Manipulate file names and locations using a text editor
 
@@ -31,5 +31,7 @@ moving, copying, and deleting files using your preferred editor.
 %{_bindir}/moove
 
 %changelog
+* Mon May 04 2026 urin <urinkun@gmail.com> - 0.4.5-1
+- Release v0.4.5
 * Thu Jan 01 2026 urin <urin@urin.net> - 0.4.4-1
 - Initial COPR package
