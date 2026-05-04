@@ -1,0 +1,131 @@
+# Follow-up jobs that run after the dist-generated Release workflow completes.
+# Kept in a separate file so that `dist generate` can freely regenerate release.yml
+# without overwriting these hand-maintained steps.
+
+name: Release Follow-up
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+jobs:
+  # Extract release metadata from the dist manifest produced by the Release workflow.
+  check:
+    runs-on: "ubuntu-22.04"
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      tag: ${{ steps.info.outputs.tag }}
+      is_prerelease: ${{ steps.info.outputs.is_prerelease }}
+    steps:
+      - name: Download dist manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-dist-manifest
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract release info
+        id: info
+        run: |
+          tag=$(jq -r '.announcement_tag' dist-manifest.json)
+          is_prerelease=$(jq -r '.announcement_is_prerelease' dist-manifest.json)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$is_prerelease" >> "$GITHUB_OUTPUT"
+
+  # Remove release assets that are useful for dist/publishing but should not be shown
+  # as end-user downloads.
+  cleanup-release-assets:
+    needs: check
+    if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+    runs-on: "ubuntu-22.04"
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Delete internal release assets
+        shell: bash
+        run: |
+          tag="${{ needs.check.outputs.tag }}"
+          for asset in dist-manifest.json moove.rb sha256.sum; do
+            gh release delete-asset "$tag" "$asset" --repo urin/moove --yes
+          done
+
+  # Push the generated Homebrew formula to urin/homebrew-moove tap repository.
+  # HOMEBREW_TAP_TOKEN must be a GitHub PAT with 'repo' scope for homebrew-moove.
+  publish-homebrew-formula:
+    needs: check
+    if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+    runs-on: "ubuntu-22.04"
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v6
+        with:
+          repository: urin/homebrew-moove
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          persist-credentials: true
+      - name: Download formula artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: artifacts-*
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: Formula/
+          merge-multiple: true
+      - name: Commit and push formula to tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/
+          git commit -m "Update formula for moove ${{ needs.check.outputs.tag }}" || echo "Nothing to commit"
+          git push
+
+  # Publish the Windows archive to the WinGet package repository via wingetcreate.
+  publish-winget:
+    needs: check
+    if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Publish to WinGet
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ needs.check.outputs.tag }}"
+          $version = $tag.TrimStart('v')
+          $url = (gh release view $tag --repo urin/moove --json assets --jq '[.assets[] | select(.name | endswith(".zip")) | .browserDownloadUrl][0]')
+          Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          .\wingetcreate.exe update Urin.moove --version $version --urls $url --token $env:WINGET_TOKEN --submit
+
+  # # Submit a build to Fedora COPR for the RPM package.
+  # # Targets: Fedora 41, 42, Rawhide + EPEL 9, 10 (x86_64 and aarch64).
+  # # Required secrets: COPR_LOGIN, COPR_USERNAME, COPR_TOKEN (from copr.fedorainfracloud.org/api).
+  # publish-copr:
+  #   needs: check
+  #   if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+  #   runs-on: "ubuntu-22.04"
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #       with:
+  #         persist-credentials: false
+  #         ref: ${{ needs.check.outputs.tag }}
+  #     - name: Install copr-cli
+  #       run: pip install copr-cli --break-system-packages
+  #     - name: Configure copr-cli
+  #       run: |
+  #         mkdir -p ~/.config
+  #         cat > ~/.config/copr <<EOF
+  #         [copr-cli]
+  #         login = ${{ secrets.COPR_LOGIN }}
+  #         username = ${{ secrets.COPR_USERNAME }}
+  #         token = ${{ secrets.COPR_TOKEN }}
+  #         copr_url = https://copr.fedorainfracloud.org
+  #         EOF
+  #     - name: Submit build to COPR
+  #       run: |
+  #         copr-cli buildscm \
+  #           --clone-url https://github.com/urin/moove \
+  #           --commit ${{ needs.check.outputs.tag }} \
+  #           --spec packaging/rpm/moove.spec \
+  #           --type git \
+  #           --nowait \
+  #           urin/moove

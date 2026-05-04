@@ -18,9 +18,12 @@ resolver = "2"
 [workspace.metadata.dist]
 cargo-dist-version = "0.31.0"
 ci = "github"
-allow-dirty = ["ci"]
 installers = ["homebrew"]
 tap = "urin/homebrew-moove"
+github-attestations = true
+github-attestations-phase = "host"
+github-attestations-filters = ["*.zip", "*.tar.gz"]
+source-tarball = false
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
