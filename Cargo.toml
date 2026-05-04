@@ -28,6 +28,15 @@ targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-musl", "x86_64-unknown
 unix-archive = ".tar.gz"
 windows-archive = ".zip"
 
+[package.metadata.release]
+tag-name = "v{{version}}"
+pre-release-commit-message = "Release v{{version}}"
+push = false
+publish = false
+pre-release-replacements = [
+    { file = "packaging/rpm/moove.spec", search = "^Version:\\s+.*$", replace = "Version:        {{version}}", exactly = 1 },
+]
+
 [dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.4.18", features = ["derive"] }
