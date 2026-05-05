@@ -23,7 +23,7 @@ jobs:
       is_prerelease: ${{ steps.info.outputs.is_prerelease }}
     steps:
       - name: Download dist manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: artifacts-dist-manifest
           run-id: ${{ github.event.workflow_run.id }}
@@ -36,8 +36,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "is_prerelease=$is_prerelease" >> "$GITHUB_OUTPUT"
 
-  # Remove release assets that are useful for dist/publishing but should not be shown
-  # as end-user downloads.
+  # Remove release assets that are useful for dist/publishing but should not be shown as end-user downloads.
   cleanup-release-assets:
     needs: check
     if: ${{ needs.check.outputs.is_prerelease == 'false' }}
@@ -47,16 +46,16 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ needs.check.outputs.tag }}
+      REPO: ${{ github.repository }}
     steps:
       - name: Delete internal release assets
         shell: bash
         run: |
           for asset in dist-manifest.json moove.rb sha256.sum; do
-            gh release delete-asset "$TAG" "$asset" --repo urin/moove --yes
+            gh release delete-asset "$TAG" "$asset" --repo "$REPO" --yes
           done
 
   # Push the generated Homebrew formula to urin/homebrew-moove tap repository.
-  # HOMEBREW_TAP_TOKEN must be a GitHub PAT with 'repo' scope for homebrew-moove.
   publish-homebrew-formula:
     needs: check
     if: ${{ needs.check.outputs.is_prerelease == 'false' }}
@@ -70,11 +69,11 @@ jobs:
       - name: Checkout tap repository
         uses: actions/checkout@v6
         with:
-          repository: urin/homebrew-moove
+          repository: ${{ github.repository_owner }}/homebrew-moove
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           persist-credentials: true
       - name: Download formula artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: artifacts-*
           run-id: ${{ github.event.workflow_run.id }}
@@ -99,6 +98,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ needs.check.outputs.tag }}
+      REPO: ${{ github.repository }}
     steps:
       - name: Publish to WinGet
         env:
@@ -107,33 +107,62 @@ jobs:
         run: |
           $version = $env:TAG.TrimStart('v')
           Write-Host "Fetching assets for tag: $env:TAG"
-          $assets = gh release view $env:TAG --repo urin/moove --json assets -q '.assets[].name'
+          $assets = gh release view $env:TAG --repo $env:REPO --json assets -q '.assets[].name'
           Write-Host "Available assets: $assets"
-          $assetName = (gh release view $env:TAG --repo urin/moove --json assets --jq '[.assets[] | select(.name | test("\\.zip$")) | .name][0]')
+          $assetName = (gh release view $env:TAG --repo $env:REPO --json assets --jq '[.assets[] | select(.name | test("\\.zip$")) | .name][0]')
           Write-Host "Selected asset: $assetName"
           if (-not $assetName -or $assetName -eq "null") {
             Write-Host "No .zip asset found. Exiting."
             exit 1
           }
-          $url = "https://github.com/urin/moove/releases/download/$([uri]::EscapeDataString($env:TAG))/$([uri]::EscapeDataString($assetName))"
+          $url = "https://github.com/$env:REPO/releases/download/$([uri]::EscapeDataString($env:TAG))/$([uri]::EscapeDataString($assetName))"
           Write-Host "Selected URL: $url"
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
           .\wingetcreate.exe update Urin.moove --version $version --urls $url --token $env:WINGET_TOKEN --submit
 
-  # Submit a build to Fedora COPR for the RPM package.
-  # Targets: Fedora 41, 42, Rawhide + EPEL 9, 10 (x86_64 and aarch64).
-  # Required secrets: COPR_LOGIN, COPR_USERNAME, COPR_TOKEN (from copr.fedorainfracloud.org/api).
-  publish-copr:
+  # Generate and upload the Cargo vendor tarball for offline RPM builds in COPR.
+  vendor-release:
     needs: check
     if: ${{ needs.check.outputs.is_prerelease == 'false' }}
     runs-on: "ubuntu-22.04"
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.check.outputs.tag }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.check.outputs.tag }}
+      - name: Generate Cargo vendor tarball
+        run: |
+          version="${TAG#v}"
+          cargo vendor vendor
+          tar czf "moove-${version}-cargo-vendor.tar.gz" vendor
+      - name: Upload Cargo vendor tarball to release
+        run: |
+          version="${TAG#v}"
+          gh release upload "$TAG" "moove-${version}-cargo-vendor.tar.gz" --repo "$REPO"
+
+  # Submit a build to Fedora COPR for the RPM package.
+  # Required secrets: COPR_LOGIN, COPR_USERNAME, COPR_TOKEN (from copr.fedorainfracloud.org/api).
+  publish-copr:
+    needs: [check, vendor-release]
+    if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+    runs-on: "ubuntu-22.04"
+    env:
+      TAG: ${{ needs.check.outputs.tag }}
+      REPO: ${{ github.repository }}
+      COPR_PROJECT: ${{ secrets.COPR_USERNAME }}/moove
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
           ref: ${{ needs.check.outputs.tag }}
       - name: Install copr-cli
-        run: pip install copr-cli --break-system-packages
+        run: sudo pip3 install copr-cli rich
       - name: Configure copr-cli
         run: |
           mkdir -p ~/.config
@@ -147,9 +176,9 @@ jobs:
       - name: Submit build to COPR
         run: |
           copr-cli buildscm \
-            --clone-url https://github.com/urin/moove \
-            --commit ${{ needs.check.outputs.tag }} \
+            --clone-url "https://github.com/$REPO" \
+            --commit "$TAG" \
             --spec packaging/rpm/moove.spec \
             --type git \
             --nowait \
-            urin/moove
+            "$COPR_PROJECT"

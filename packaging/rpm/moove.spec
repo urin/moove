@@ -1,5 +1,5 @@
 Name:           moove
-Version:        0.4.5
+Version:        0.4.6
 Release:        1%{?dist}
 Summary:        Manipulate file names and locations using a text editor
 
@@ -7,6 +7,7 @@ Summary:        Manipulate file names and locations using a text editor
 License:        MIT OR Apache-2.0
 URL:            https://github.com/urin/moove
 Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz#/%{name}-%{version}.tar.gz
+Source1:        %{url}/releases/download/v%{version}/%{name}-%{version}-cargo-vendor.tar.gz
 
 BuildRequires:  rust-packaging >= 21
 
@@ -17,7 +18,8 @@ moving, copying, and deleting files using your preferred editor.
 
 %prep
 %autosetup -n %{name}-%{version}
-%cargo_prep
+tar xf %{SOURCE1}
+%cargo_prep -v vendor
 
 %build
 %cargo_build
@@ -29,8 +31,11 @@ moving, copying, and deleting files using your preferred editor.
 %license LICENSE-MIT LICENSE-APACHE
 %doc README.md
 %{_bindir}/moove
+%exclude %{_datadir}/cargo/registry/*
 
 %changelog
+* Tue May 05 2026 urin <urinkun@gmail.com> - 0.4.6-1
+- Release v0.4.6
 * Mon May 04 2026 urin <urinkun@gmail.com> - 0.4.5-1
 - Release v0.4.5
 * Thu Jan 01 2026 urin <urin@urin.net> - 0.4.4-1
