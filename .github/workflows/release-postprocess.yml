@@ -120,36 +120,36 @@ jobs:
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
           .\wingetcreate.exe update Urin.moove --version $version --urls $url --token $env:WINGET_TOKEN --submit
 
-  # # Submit a build to Fedora COPR for the RPM package.
-  # # Targets: Fedora 41, 42, Rawhide + EPEL 9, 10 (x86_64 and aarch64).
-  # # Required secrets: COPR_LOGIN, COPR_USERNAME, COPR_TOKEN (from copr.fedorainfracloud.org/api).
-  # publish-copr:
-  #   needs: check
-  #   if: ${{ needs.check.outputs.is_prerelease == 'false' }}
-  #   runs-on: "ubuntu-22.04"
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #       with:
-  #         persist-credentials: false
-  #         ref: ${{ needs.check.outputs.tag }}
-  #     - name: Install copr-cli
-  #       run: pip install copr-cli --break-system-packages
-  #     - name: Configure copr-cli
-  #       run: |
-  #         mkdir -p ~/.config
-  #         cat > ~/.config/copr <<EOF
-  #         [copr-cli]
-  #         login = ${{ secrets.COPR_LOGIN }}
-  #         username = ${{ secrets.COPR_USERNAME }}
-  #         token = ${{ secrets.COPR_TOKEN }}
-  #         copr_url = https://copr.fedorainfracloud.org
-  #         EOF
-  #     - name: Submit build to COPR
-  #       run: |
-  #         copr-cli buildscm \
-  #           --clone-url https://github.com/urin/moove \
-  #           --commit ${{ needs.check.outputs.tag }} \
-  #           --spec packaging/rpm/moove.spec \
-  #           --type git \
-  #           --nowait \
-  #           urin/moove
+  # Submit a build to Fedora COPR for the RPM package.
+  # Targets: Fedora 41, 42, Rawhide + EPEL 9, 10 (x86_64 and aarch64).
+  # Required secrets: COPR_LOGIN, COPR_USERNAME, COPR_TOKEN (from copr.fedorainfracloud.org/api).
+  publish-copr:
+    needs: check
+    if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+    runs-on: "ubuntu-22.04"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.check.outputs.tag }}
+      - name: Install copr-cli
+        run: pip install copr-cli --break-system-packages
+      - name: Configure copr-cli
+        run: |
+          mkdir -p ~/.config
+          cat > ~/.config/copr <<EOF
+          [copr-cli]
+          login = ${{ secrets.COPR_LOGIN }}
+          username = ${{ secrets.COPR_USERNAME }}
+          token = ${{ secrets.COPR_TOKEN }}
+          copr_url = https://copr.fedorainfracloud.org
+          EOF
+      - name: Submit build to COPR
+        run: |
+          copr-cli buildscm \
+            --clone-url https://github.com/urin/moove \
+            --commit ${{ needs.check.outputs.tag }} \
+            --spec packaging/rpm/moove.spec \
+            --type git \
+            --nowait \
+            urin/moove
