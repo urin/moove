@@ -55,6 +55,59 @@ jobs:
             gh release delete-asset "$TAG" "$asset" --repo "$REPO" --yes
           done
 
+  # Replace dist's Homebrew-only install section with all published package managers.
+  update-release-notes:
+    needs: [check, publish-homebrew-formula, publish-winget, publish-copr]
+    if: ${{ needs.check.outputs.is_prerelease == 'false' }}
+    runs-on: "ubuntu-22.04"
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.check.outputs.tag }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Update install instructions
+        shell: bash
+        run: |
+          gh release view "$TAG" --repo "$REPO" --json body --jq .body > "$RUNNER_TEMP/notes.md"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          notes_path = Path(os.environ["RUNNER_TEMP"]) / "notes.md"
+          notes = notes_path.read_text(encoding="utf-8")
+          old = """### Install prebuilt binaries via Homebrew
+
+          ```sh
+          brew install urin/moove/moove
+          ```"""
+          new = """### Install via WinGet
+
+          ```powershell
+          winget install Urin.moove
+          ```
+
+          ### Install via Homebrew
+
+          ```sh
+          brew install urin/moove/moove
+          ```
+
+          ### Install via Fedora COPR
+
+          ```sh
+          sudo dnf copr enable urin/moove
+          sudo dnf install moove
+          ```"""
+
+          if old in notes:
+              notes_path.write_text(notes.replace(old, new, 1), encoding="utf-8")
+          elif new not in notes:
+              raise SystemExit("expected install section was not found")
+          PY
+          gh release edit "$TAG" --repo "$REPO" --notes-file "$RUNNER_TEMP/notes.md"
+
   # Push the generated Homebrew formula to urin/homebrew-moove tap repository.
   publish-homebrew-formula:
     needs: check

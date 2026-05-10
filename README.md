@@ -80,12 +80,18 @@ Options:
 
 - Windows
   ```powershell
-  winget install moove
+  winget install Urin.moove
   ```
 
 - macOS (Homebrew)
   ```sh
   brew install urin/moove/moove
+  ```
+
+- Fedora COPR
+  ```sh
+  sudo dnf copr enable urin/moove
+  sudo dnf install moove
   ```
 
 - cargo
