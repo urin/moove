@@ -1,5 +1,5 @@
 Name:           moove
-Version:        0.4.6
+Version:        0.4.7
 Release:        1%{?dist}
 Summary:        Manipulate file names and locations using a text editor
 
@@ -34,6 +34,8 @@ tar xf %{SOURCE1}
 %exclude %{_datadir}/cargo/registry/*
 
 %changelog
+* Sun May 10 2026 urin <urinkun@gmail.com> - 0.4.7-1
+- Release v0.4.7
 * Tue May 05 2026 urin <urinkun@gmail.com> - 0.4.6-1
 - Release v0.4.6
 * Mon May 04 2026 urin <urinkun@gmail.com> - 0.4.5-1
